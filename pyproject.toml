@@ -3,9 +3,9 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fiqh-search"
+name = "zawiyah-ulom"
 version = "0.1.0"
-description = "Full-text search over classical Shafi'i fiqh books from Shamela"
+description = "زاوية العلوم: a personal library and search engine for the Islamic sciences (books from Shamela and ketabonline)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -16,13 +16,14 @@ dependencies = [
 ]
 
 [project.scripts]
-fiqh = "fiqh_search.cli:main"
+zawiyah = "zawiyah_ulom.cli:main"
+zawiyah-ulom = "zawiyah_ulom.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-fiqh_search = [
+zawiyah_ulom = [
     "web/templates/*.html",
     "static_site/templates/*.html",
     "static_site/assets/*",

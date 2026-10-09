@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}المكتبة{% endblock %}
+{% block content %}
+<h1>المكتبة</h1>
+{% if message %}<p class="saved">✓ {{ message }}</p>{% endif %}
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<section class="card">
+  <h2>إضافة كتاب</h2>
+  <form class="search" method="get" action="{{ url_for('ui_library') }}">
+    <input type="text" name="ref" value="{{ ref }}" dir="ltr" placeholder="https://shamela.ws/book/9973 أو https://ketabonline.com/ar/books/92681" required>
+    <button type="submit">معاينة</button>
+  </form>
+  <p class="muted">من المكتبة الشاملة أو جامع الكتب الإسلامية (ketabonline). تظهر بيانات الكتاب وفهرسه أولًا، ولا يبدأ التنزيل إلا بعد تأكيدك.</p>
+</section>
+
+{% if preview %}
+<section class="card note">
+  <h2>{{ preview.title }}</h2>
+  <dl class="facts">
+    <dt>المؤلف</dt><dd>{{ preview.author.full_arabic_name or preview.author.name }}{% if preview.author.year_death_hijri %} (ت {{ preview.author.year_death_hijri }} هـ){% endif %}</dd>
+    {% if preview.publisher %}<dt>الناشر</dt><dd>{{ preview.publisher }}</dd>{% endif %}
+    <dt>الصفحات</dt><dd>{{ preview.last_page }} · التنزيل نحو {{ ((preview.last_page * 1.3) / 60)|round|int or 1 }} دقيقة</dd>
+    <dt>المصدر</dt><dd>{{ preview.source_label }} · <a href="{{ preview.url }}" target="_blank" rel="noopener">{{ preview.url }}</a></dd>
+  </dl>
+
+  {% if preview.in_library %}<p class="error">هذا الكتاب موجود في المكتبة بالفعل.</p>
+  {% elif preview.staged %}<p class="saved">هذا الكتاب منزَّل وينتظر قرارك أدناه.</p>
+  {% else %}
+    {% if preview.flat_toc and not preview.has_outline %}
+      <p class="error">فهرس هذا الكتاب مسطَّح (فصول فقط بلا كتاب/باب): سيظهر كل فصل بابًا مستقلًا بلا وسوم.
+        يمكن تنزيله ومراجعته، لكنه يحتاج إلى ملف عناوين (data/outlines/{{ preview.key }}.json) قبل إضافته.</p>
+    {% elif preview.has_outline %}<p class="muted">يوجد ملف عناوين لهذا الكتاب وسيُستخدم.</p>{% endif %}
+    <form method="post" action="{{ url_for('ui_library_download') }}">
+      <input type="hidden" name="source" value="{{ preview.source }}">
+      <input type="hidden" name="book_id" value="{{ preview.source_id }}">
+      <input type="hidden" name="title" value="{{ preview.title }}">
+      <button type="submit" class="button" {% if job and job.state == 'running' %}disabled title="يجري تنزيل كتاب آخر"{% endif %}>تنزيل الكتاب</button>
+    </form>
+  {% endif %}
+
+  <details>
+    <summary>الفهرس ({{ preview.chapters|length }})</summary>
+    <ol class="toc">{% for c in preview.chapters %}<li>{{ c.title }} <span class="muted">ص {{ c.page }}{% if c.nested %} · له فروع{% endif %}</span></li>{% endfor %}</ol>
+  </details>
+</section>
+{% endif %}
+
+{% if job %}
+<section class="card" id="job" data-state="{{ job.state }}">
+  <h2>التنزيل: {{ job.title }}</h2>
+  {% if job.state == 'failed' %}
+    <p class="error">توقف التنزيل: {{ job.error }}</p>
+    <p class="muted">الصفحات المنزَّلة محفوظة؛ أعد المحاولة من المعاينة وسيكمل من حيث توقف.</p>
+  {% else %}
+    <progress id="job-bar" max="100" value="{{ job.percent }}"></progress>
+    <p class="muted" id="job-text">{% if job.state == 'done' %}اكتمل التنزيل.{% else %}{{ job.pages_read }} / {{ job.total_pages or '…' }} صفحة{% endif %}</p>
+    {% if job.state == 'running' %}<p class="muted">يمكنك متابعة القراءة في تبويب آخر؛ ستتحدث هذه الصفحة تلقائيًا عند الانتهاء.</p>{% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+{% for b in staged %}
+{% set r = b.report %}
+<section class="card note">
+  <h2>بانتظار قرارك: {{ b.title }}</h2>
+  <p class="muted">{{ b.author }}</p>
+  <dl class="facts">
+    <dt>الأبواب</dt><dd>{{ r.chapters }}</dd>
+    <dt>الفصول</dt><dd>{{ r.sections }}</dd>
+    <dt>مطابقة العناوين في النص</dt>
+    <dd class="{{ 'ok' if r.located == r.sections else '' }}">{{ r.located }} / {{ r.sections }}
+      {% if r.located == r.sections %}✓{% else %}· الفصول غير المطابقة تشارك صفحة الحدّ مع جارتها، فلا يضيع نص{% endif %}</dd>
+    <dt>حجم النص</dt><dd>{{ '{:,}'.format(r.characters) }} حرف</dd>
+  </dl>
+
+  {% if r.looks_flat %}<p class="error">يبدو الفهرس مسطَّحًا: معظم الأبواب فيها فصل واحد. يحتاج إلى ملف عناوين قبل الإضافة.</p>{% endif %}
+  {% if r.empty %}<p class="error">فصول فارغة: {{ r.empty|join('، ') }}</p>{% endif %}
+
+  {% for key, label in (('unlocated', 'فصول لم يُعثر على عنوانها في النص'), ('untagged', 'أبواب بلا وسوم'), ('stray_markers', 'علامات زائدة في بداية فصل أو نهايته')) %}
+    {% if r[key] %}
+    <details><summary>{{ label }} ({{ r[key]|length }})</summary>
+      <ul>{% for x in r[key] %}<li>{% if x is mapping %}{{ x.title }} <span class="muted">ص {{ x.page }}</span>{% else %}{{ x }}{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+  {% endfor %}
+
+  <details><summary>عينة من الفصول</summary>
+    {% for s in r.samples %}<div class="sample"><strong>{{ s.title }}</strong>
+      <div class="snippet">{{ s.start }} …</div><div class="snippet muted">… {{ s.end }}</div></div>{% endfor %}
+  </details>
+
+  <div class="note-actions">
+    <form method="post" action="{{ url_for('ui_library_accept', key=b.key) }}">
+      <button type="submit">أضف إلى المكتبة</button></form>
+    <form method="post" action="{{ url_for('ui_library_discard', key=b.key) }}"
+          onsubmit="return confirm('تجاهل الكتاب المنزَّل؟ تبقى الصفحات محفوظة فيمكن تنزيله ثانية بسرعة.');">
+      <button type="submit" class="danger">تجاهل</button></form>
+  </div>
+</section>
+{% endfor %}
+
+<h2>الكتب في المكتبة ({{ books|length }})</h2>
+{% for b in books %}
+  <div class="card scholar-row">
+    <div>
+      <a href="{{ url_for('ui_book', book_id=b.id) }}"><strong>{{ b.title }}</strong></a>
+      <div class="muted">{% if b.author_id %}<a href="{{ url_for('ui_tarjama', scholar_id=b.author_id) }}">{{ b.author }}</a>{% endif %}
+        {% if b.year_death_hijri %}(ت {{ b.year_death_hijri }} هـ){% endif %}
+        · {{ b.chapters }} باب · {{ b.sections }} فصل{% if b.notes %} · ✎ {{ b.notes }} ملاحظة{% endif %}
+        · <a href="{{ b.source_url }}" target="_blank" rel="noopener">{{ 'جامع الكتب الإسلامية' if 'ketabonline' in (b.source_url or '') else 'الشاملة' }}</a></div>
+    </div>
+  </div>
+{% endfor %}
+
+<script>
+  // Poll the background download and refresh the page when it finishes.
+  const jobBox = document.getElementById("job");
+  if (jobBox && jobBox.dataset.state === "running") {
+    const timer = setInterval(async () => {
+      try {
+        const job = await (await fetch("{{ url_for('api_library_job') }}")).json();
+        if (!job) return;
+        document.getElementById("job-bar").value = job.percent;
+        document.getElementById("job-text").textContent = job.pages_read + " / " + (job.total_pages || "…") + " صفحة";
+        if (job.state !== "running") { clearInterval(timer); location.href = "{{ url_for('ui_library') }}"; }
+      } catch (e) { /* app restarting; keep polling */ }
+    }, 2000);
+  }
+</script>
+{% endblock %}

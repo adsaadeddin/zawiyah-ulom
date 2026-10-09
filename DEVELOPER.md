@@ -1,6 +1,6 @@
 # Developer Guide
 
-How the fiqh search engine is built, how to run each stage, and how to extend it.
+How زاوية العلوم (Zawiyah Ulom) is built, how to run each stage, and how to extend it.
 For a project overview, see [README.md](README.md).
 
 ## Contents
@@ -38,21 +38,23 @@ Each stage reads only the previous stage's output, so you can rerun any stage al
 
 | Stage | Input | Output | Needs network |
 |---|---|---|---|
-| `fiqh scrape` | Shamela, or the `data/raw/` cache | `data/books/*.json` | Only for uncached pages |
-| `fiqh load` | `data/books/*.json` | `data/fiqh.db` | No |
-| `fiqh tag` | `data/fiqh.db` | `data/fiqh.db` (ChapterTag) | No |
-| `fiqh export` | `data/fiqh.db` | `docs/` | No |
+| `zawiyah scrape` | Shamela, or the `data/raw/` cache | `data/books/*.json` | Only for uncached pages |
+| `zawiyah load` | `data/books/*.json` | `data/fiqh.db` | No |
+| `zawiyah tag` | `data/fiqh.db` | `data/fiqh.db` (ChapterTag) | No |
+| `zawiyah export` | `data/fiqh.db` | `docs/` | No |
 
 `data/books/*.json` is committed, so a fresh clone can rebuild the database and site
-with `fiqh build` without scraping.
+with `zawiyah build` without scraping.
 
 ## 2. Project layout
 
 ```
-pyproject.toml              package metadata, dependencies, `fiqh` console script
-src/fiqh_search/
-  config.py                 paths (data/, docs/), BOOK_IDS, Shamela settings
-  cli.py                    `fiqh` subcommands, the only entry point
+pyproject.toml              package metadata, dependencies, `zawiyah` console script
+src/zawiyah_ulom/
+  config.py                 paths (data/, docs/), book_ids() (= files in data/books/), Shamela settings
+  library.py                «المكتبة» tab: preview, background download, quality report, add
+  ketabonline.py            ketabonline.com source (JSON API), alongside the Shamela source in scraper.py
+  cli.py                    `zawiyah` subcommands, the only entry point
   arabic.py                 normalization rules and functions (single source of truth)
   scraper.py                Shamela → book JSON (TOC, page text, section boundaries)
   db.py                     SQLite schema (8 tables + SectionFTS) and connection helper
@@ -67,7 +69,7 @@ data/books/                 scraped books (committed)
 docs/                       generated static site (committed; served by GitHub Pages)
 ```
 
-Generated files: don't edit anything in `docs/` by hand. `fiqh export` deletes and
+Generated files: don't edit anything in `docs/` by hand. `zawiyah export` deletes and
 recreates the whole folder.
 
 ## 3. Setup
@@ -88,15 +90,15 @@ Interpreter*). Otherwise the editor flags the imports as missing.
 
 | Command | What it does |
 |---|---|
-| `fiqh scrape [ID ...]` | Scrape books (default: `config.BOOK_IDS`) into `data/books/<id>.json` |
-| `fiqh load [--fresh] [FILE ...]` | Load book JSON into SQLite, then retag. `--fresh` empties the book tables first (scholars are kept) |
-| `fiqh tag` | Re-run tag rules on every chapter and print the result |
-| `fiqh export` | Generate the static site in `docs/` |
-| `fiqh build` | `load --fresh` followed by `export`. Use this after any data change |
-| `fiqh search QUERY [--tag T] [--limit N]` | Search from the terminal (FTS5) |
-| `fiqh serve [--port N] [--no-debug]` | Run the Flask app at http://127.0.0.1:5000 |
+| `zawiyah scrape [ID ...]` | Scrape books into `data/books/<id>.json` (default: re-scrape every book already in `data/books/`) |
+| `zawiyah load [--fresh] [FILE ...]` | Load book JSON into SQLite, then retag. `--fresh` empties the book tables first (scholars are kept) |
+| `zawiyah tag` | Re-run tag rules on every chapter and print the result |
+| `zawiyah export` | Generate the static site in `docs/` |
+| `zawiyah build` | `load --fresh` followed by `export`. Use this after any data change |
+| `zawiyah search QUERY [--tag T] [--limit N]` | Search from the terminal (FTS5) |
+| `zawiyah serve [--port N] [--no-debug]` | Run the Flask app at http://127.0.0.1:5000 |
 
-`python -m fiqh_search …` works as well as `fiqh …`.
+`python -m zawiyah_ulom …` works as well as `fiqh …`.
 
 ## 5. Pipeline stages
 
@@ -167,9 +169,40 @@ title inside its start page (`find_title`):
 Content cleanup: a first line consisting only of the heading (e.g. `[• السواك]`) is removed,
 because the UI shows the title separately. A trailing `* * *` separator is also removed.
 
-`fiqh scrape` prints `title located in text: X` for each book. **Check this number when
-adding a book.** Current results: 204/204 (35120), 145/145 (6140), 118/124 (26535),
-118/118 (6125).
+`zawiyah scrape` prints `title located in text: X` for each book. **Check this number when
+adding a book.** Current results: 209/209 (35120), 149/149 (6140), 118/124 (26535),
+118/118 (6125), 113/113 (9973), 179/179 (ketabonline-92681).
+
+**Openings (`build_outline`).** Two kinds of text sat outside every section and were
+lost or misfiled until 2026-10-09:
+- **Text before the first TOC entry**, such as the author's introduction (كفاية الأخيار's
+  TOC starts at page 3) or a khutba before the first كتاب. It now goes to a first
+  chapter «مقدمة الكتاب», which is dropped when it's only a title page (under 100
+  characters). It never shares a boundary page.
+- **A كتاب's opening text when its first باب starts on the same page.** It now becomes
+  the كتاب's own first section, just as when the first باب starts on a later page. It is
+  kept only if the كتاب heading is found in the text and the section isn't empty;
+  otherwise the text stays with the previous section, as before. This also stops a
+  chapter heading from leaking onto the end of the previous section.
+
+A check across all books found no other text outside a section.
+
+**Heading-only and repeated pages (`fix_heading_pages`, `drop_repeated_sections`).**
+Shamela sometimes inserts a page that holds only a فصل heading (printed page number 0),
+and its TOC links to it. In المنهاج القويم (9973) there are three cases:
+
+| Case | Page | Fix |
+|---|---|---|
+| Duplicate heading page | p171 (the real فصل starts on p172 under the same title) | The entry is dropped |
+| Out-of-order heading page | p102 «سنن الاعتدال» (its text is on p104, after سنن الركوع) | Moved to where the heading opens a paragraph within the next 5 pages. Dropped if another entry with that title already starts there |
+| Text missing from Shamela's copy | p11 «في الماء المكروه»: not even the matn wording appears anywhere | The entry is kept with `missing_text: true` and empty content. The reading page shows a notice instead of a blank page |
+
+- **Skipped pages.** Pages whose entry was dropped or moved are read as empty
+  (`skip_pages`), so their heading doesn't leak into the previous section.
+- **Repeated pages.** Shamela also repeats whole pages: 9973's p103 is a copy of p101.
+  After filling, a section with the same title and identical text as an earlier one in
+  its chapter is dropped. Only exact repeats are affected.
+- **Other books** were unaffected by both fixes (byte-identical JSON).
 
 **Outline files (`data/outlines/<id>.json`), for flat TOCs.** Some Shamela books list only
 their فصول, with no كتاب/باب level, while the headings are printed inline in the text
@@ -217,13 +250,13 @@ regex built with `arabic.fuzzy_pattern("باب")`, then drop false positives suc
   is duplicated.
 - The whole load runs in one transaction, and tagging runs at the end.
 - **IDs and URLs.** SQLite assigns new IDs on every reload, and the static site's URLs
-  (`section/<id>.html`) come from these IDs. Use `fiqh load --fresh` (or `fiqh build`) so
+  (`section/<id>.html`) come from these IDs. Use `zawiyah load --fresh` (or `zawiyah build`) so
   that IDs start at 1 and stay stable for the same set of books.
 - **What `--fresh` keeps.** It empties only the book tables (`loader.CORPUS_TABLES`:
   Book, Chapter, Section, Tag, ChapterTag, plus SectionFTS and the book URLs). Because
   they are empty, their IDs restart at 1. `Scholar`, `TeacherStudent`, `Publisher` and
   scholar links are **kept**, because they hold the tarajem you enter by hand. So
-  `fiqh.db` is no longer disposable. Back it up with `fiqh backup`, and don't delete it
+  `fiqh.db` is no longer disposable. Back it up with `zawiyah backup`, and don't delete it
   to "start clean".
 - **Book authors** are matched to existing scholars by Shamela author URL first, then by
   name. Renaming an author on the tarajem page therefore doesn't create a duplicate on
@@ -252,7 +285,7 @@ keeps it in sync when sections are removed.
 **Schema changes.** `init_db()` runs `CREATE TABLE IF NOT EXISTS`, which never alters an
 existing table. To add a column to an existing table, also append it to `db.MIGRATIONS`.
 `init_db()` then adds it with `ALTER TABLE` to databases created before the change (it
-runs on every `fiqh load`/`tag`). New tables and indexes need only the `SCHEMA` entry.
+runs on every `zawiyah load`/`tag`). New tables and indexes need only the `SCHEMA` entry.
 Foreign keys are enforced per connection (`PRAGMA foreign_keys = ON` in `get_connection()`).
 
 ### 5.4 Arabic normalization (`arabic.py`): single source of truth
@@ -287,8 +320,8 @@ keyword is a substring of its name. Both are compared after `normalize()`, so wr
 keywords in ordinary spelling (جنائز، أطعمة) without ال. Each rule normally assigns a
 topic tag plus a broad category (عبادات، معاملات، أحوال شخصية، عقوبات).
 
-Tags are recomputed from scratch on every `fiqh load` and `fiqh tag`, and tags that no
-chapter uses any more are deleted. Run `fiqh tag` to see every chapter with its tags.
+Tags are recomputed from scratch on every `zawiyah load` and `zawiyah tag`, and tags that no
+chapter uses any more are deleted. Run `zawiyah tag` to see every chapter with its tags.
 
 ### 5.6 Search
 
@@ -303,12 +336,12 @@ chapter uses any more are deleted. Run `fiqh tag` to see every chapter with its 
 
 ### 5.7 Personal notes (`notes.py`)
 
-There is one note per section, written in the Flask UI (`fiqh serve`). The note box is
+There is one note per section, written in the Flask UI (`zawiyah serve`). The note box is
 at the bottom of each section page, and Ctrl+Enter saves. `/notes` lists every note in
 reading order. Home-page search shows matching notes first, under «في ملاحظاتي».
 
 - **Storage.** Notes live in `data/notes.db`, separate from `fiqh.db`, because
-  `fiqh build` empties and reloads the book tables there, and section ids can change. The web app attaches it to every connection as schema
+  `zawiyah build` empties and reloads the book tables there, and section ids can change. The web app attaches it to every connection as schema
   `notes` (`attach_notes`).
 - **Linking.** A note is linked by `Section.source_key` = `"<shamela_id>:<page>:<title>"`
   (`loader.section_keys`), never by `Section.id`. Keys depend only on the book's TOC, so
@@ -318,14 +351,42 @@ reading order. Home-page search shows matching notes first, under «في ملا�
   old key, so you can copy it to the right section.
 - **Search.** `notes.NoteFTS` stores normalized note text, using the same rules as the books.
 - **Deleting.** Saving an empty note deletes it.
-- **Privacy.** `notes.db` and `data/backups/` are git-ignored, and `fiqh export` never
+- **Privacy.** `notes.db` and `data/backups/` are git-ignored, and `zawiyah export` never
   reads notes, so they can't reach the public repo or the static site. The JSON API
   doesn't expose them either.
-- **Backups.** `fiqh backup` writes `data/backups/notes-<timestamp>.db` (and `fiqh-<timestamp>.db`, for tarajem), and it is
+- **Backups.** `zawiyah backup` writes `data/backups/notes-<timestamp>.db` (and `fiqh-<timestamp>.db`, for tarajem), and it is
   safe while the app runs. Copy that folder somewhere outside this machine regularly
   (cloud drive or USB), because your notes exist nowhere else.
 - **Local only.** The UI has no login. Run it only on `127.0.0.1`, which is the
   default, and never expose it to a network as it is.
+
+**Notes on a passage (`notes.Annotation`).** Select any words inside one paragraph of a
+section and a ✎ button appears. The note gets a kind:
+
+| Kind | Label | Highlight |
+|---|---|---|
+| `faida` | فائدة | yellow |
+| `question` | سؤال | blue |
+| `ishkal` | إشكال | red |
+| `teaching` | للتدريس | green |
+
+- **Display.** The passage stays highlighted. Clicking it opens the note under the
+  paragraph, where it can be edited or deleted. A section can have any number of these
+  notes, plus the one general note.
+- **Anchoring.** A note stores the selected text (`quote`), up to 32 characters before
+  and after it (`prefix`/`suffix`), and the paragraph index. `anchor_annotations()`
+  places it again on every page view:
+  1. an exact match, picking among repeated phrases by the surrounding context
+  2. otherwise, a match that ignores tashkeel and letter variants (`fuzzy_pattern`)
+  3. otherwise, it is listed under the section as «لم يُعثر على نصها», with its quote,
+     and never deleted
+
+  So notes survive rebuilds and small text changes, and overlapping notes each keep
+  their highlight.
+- **Where else they appear.** `/notes` lists them in reading order, with a filter by kind
+  (`?kind=teaching`). Search covers both the note and the quoted passage
+  (`AnnotationFTS`). The table of contents shows a ✎ count per section.
+- **Limitation.** A selection must stay within one paragraph.
 
 ### 5.8 Tarajem (`tarajem.py`)
 
@@ -358,26 +419,66 @@ links, in the Flask UI only.
 - **Privacy.** Tarajem is in the git-ignored `fiqh.db`, and the static site doesn't
   include it.
 
-### 5.9 Static site and deployment (`static_site/`)
+### 5.9 Library tab (`library.py`)
 
-`fiqh export` writes `docs/`:
+The **المكتبة** tab (`/library`) adds books from the app.
+
+1. **Paste a link** (`https://shamela.ws/book/9973`, `shamela.ws/book/9973/12`, or
+   `9973`). Anything that isn't a shamela.ws book link is rejected
+   (`library.parse_book_ref`).
+2. **Preview** (`scraper.preview_book`): the book card, page count and top-level
+   contents, from 2 requests. It warns about a flat TOC and refuses books already in the
+   library.
+3. **Background download**: `scrape_book(out_dir=STAGING_DIR, progress=…)` runs in a
+   thread, one job at a time, and the page polls `/library/job` for a progress bar.
+   Jobs live in memory, so an app restart loses the job, but rerunning it resumes from
+   the page cache.
+4. **Quality report** (`library.quality_report`):
+   - located vs total sections, with the unmatched ones listed
+   - untagged chapters
+   - stray markers and empty sections
+   - a flat-TOC warning
+   - sample sections
+5. **Add or discard.** `accept` moves `data/staging/<id>.json` into `data/books/` and loads
+   it **without** `--fresh`. The new book is appended, so existing ids, static URLs and
+   note links don't change. If the load fails, the file is moved back. `discard` deletes
+   the staged file but keeps the page cache, so a second download is instant.
+6. **No removing from the app.** The page deliberately has no delete button. To remove a
+   book, delete `data/books/<id>.json` and run `zawiyah build`.
+   - Notes on its sections are kept and shown as unlinked on `/notes`.
+   - Its author stays in the tarajem.
+
+After adding or removing books, run `zawiyah export` (and commit `docs/`) to update the
+public site. `zawiyah build` also renumbers everything from 1, which keeps the static URLs
+compact.
+
+### 5.10 Static site and deployment (`static_site/`)
+
+`zawiyah export` writes `docs/`:
 
 - `index.html`, plus one page per book and one per section (`book/<id>.html`,
   `section/<id>.html`). All links are relative, so the site works under
-  `/fiqh-search/`.
+  `/zawiyah-ulom/`.
 - `data/search.json`: the normalization rules and the books, chapters (with tags) and
   sections. Section text is normalized, so snippets show it without tashkeel.
 - `assets/`, copied from `static_site/assets/`.
 - `.nojekyll`, which tells GitHub Pages to serve the files without Jekyll processing.
 
-GitHub Pages serves `main:/docs` at https://adsaadeddin.github.io/fiqh-search/. To deploy,
+GitHub Pages serves `main:/docs` at https://adsaadeddin.github.io/zawiyah-ulom/. To deploy,
 commit `docs/` and push. The site updates within about a minute.
 
 ## 6. Recipe: adding a new book
 
+**From the app (usual way):** open the **المكتبة** tab (`zawiyah serve`) and paste the
+Shamela link. It previews the book, downloads it in the background, and shows a quality
+report covering steps 4–6 below. Then press أضف إلى المكتبة, or تجاهل. Afterwards, do
+steps 7–8. The steps below are the same process by hand, which you still need for a
+flat-TOC book (§5.2).
+
 1. **Find the Shamela id.** For `https://shamela.ws/book/12345`, the id is `12345`.
-2. **Add it to `BOOK_IDS`** in `src/fiqh_search/config.py`.
-3. **Scrape it:** `fiqh scrape 12345`. Takes 5–15 minutes, and it is safe to interrupt
+2. **No list to edit.** The library is simply the files in `data/books/`
+   (`config.book_ids()`).
+3. **Scrape it:** `zawiyah scrape 12345`. Takes 5–15 minutes, and it is safe to interrupt
    and rerun.
 4. **Check the boundary stats** in the output (`title located in text: X`).
    - If X is close to the number of sections, continue.
@@ -391,10 +492,10 @@ commit `docs/` and push. The site updates within about a minute.
      unchanged: `git diff --stat data/books`.
 5. **Spot-check the content.** Section text should start at its heading and end just
    before the next one, with no stray `(`, `[•` or `* * *`.
-6. **Check the tags:** `fiqh load`, then `fiqh tag`. Any chapter showing `—` has no tags.
+6. **Check the tags:** `zawiyah load`, then `zawiyah tag`. Any chapter showing `—` has no tags.
    Add keywords to `RULES` where needed (see §7).
-7. **Rebuild and test:** `fiqh build`, then `fiqh search <something from the new book>`
-   and `fiqh serve` to browse it.
+7. **Rebuild and test:** `zawiyah build`, then `zawiyah search <something from the new book>`
+   and `zawiyah serve` to browse it.
 8. **Publish:** commit `data/books/12345.json`, `docs/` and any code changes, then push.
    Also update the book table in `README.md`.
 
@@ -406,18 +507,18 @@ URLs.
 **A normalization rule** (e.g. a new letter variant or prefix):
 
 1. Edit the data in `arabic.py` (`LETTER_MAP`, `ARTICLE_PREFIXES`, …).
-2. Run `fiqh build`. The FTS index and `search.json` both store normalized text, so
+2. Run `zawiyah build`. The FTS index and `search.json` both store normalized text, so
    everything must be regenerated.
 3. Tag keywords and scraper title matching pick up the change automatically. Rerun
-   `fiqh scrape` (offline) if title matching could be affected, and check
+   `zawiyah scrape` (offline) if title matching could be affected, and check
    `git diff --stat data/books`.
 4. Check that the browser and Python still agree. A parity check: for a set of sample
    texts, compare `arabic.tokens(text)` in Python with `makeNormalizer(index.normalize)(text)`
    from `docs/assets/search.js` in Node. They must be identical. (Phase 3 turns this into
    an automated test.)
 
-**A tag rule:** edit `RULES` in `tags.py`, run `fiqh tag` to review, then
-`fiqh export`. IDs don't change, so `--fresh` isn't needed.
+**A tag rule:** edit `RULES` in `tags.py`, run `zawiyah tag` to review, then
+`zawiyah export`. IDs don't change, so `--fresh` isn't needed.
 
 ## 8. Troubleshooting (Windows)
 

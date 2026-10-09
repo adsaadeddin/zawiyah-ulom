@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }} — {{ s.book_title }}{% endblock %}
+{% block content %}
+<div class="crumbs">
+  <a href="{{ url_for('ui_book', book_id=s.book_id) }}">{{ s.book_title }}</a> ›
+  <a href="{{ url_for('ui_book', book_id=s.book_id) }}#ch{{ s.chapter_id }}">{{ s.chapter_name }}</a>
+</div>
+<h1>{{ s.name }}</h1>
+<p class="muted">
+  <a href="#note">{% if note %}✎ ملاحظتي العامة على هذا الفصل ↓{% else %}✎ ملاحظة عامة ↓{% endif %}</a>
+  {% if ann_total %} · {{ ann_total }} ملاحظة على النص{% endif %}
+  · <span class="hint">حدد أي جملة في النص لتضيف ملاحظة عليها</span>
+</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+{% macro ann_card(a) %}
+  <div class="ann-card kind-{{ a.kind }}" id="ann-{{ a.id }}" data-id="{{ a.id }}" {% if open_ann != a.id %}hidden{% endif %}>
+    <div class="ann-head">
+      <span class="kind-badge kind-{{ a.kind }}">{{ kinds[a.kind] }}</span>
+      <span class="muted">{{ a.updated_at[:16] }}</span>
+      <button type="button" class="link ann-close" aria-label="إغلاق">×</button>
+    </div>
+    <blockquote class="ann-quote">{{ a.quote }}</blockquote>
+    <div class="note-body">{{ a.body }}</div>
+    <details>
+      <summary>تعديل</summary>
+      <form method="post" action="{{ url_for('ui_edit_annotation', ann_id=a.id) }}" class="ann-form">
+        <div class="kind-picker">{% for k, label in kinds.items() %}
+          <label class="kind-{{ k }}"><input type="radio" name="kind" value="{{ k }}" {% if k == a.kind %}checked{% endif %}> {{ label }}</label>{% endfor %}
+        </div>
+        <textarea name="body" rows="4" required>{{ a.body }}</textarea>
+        <div class="note-actions"><button type="submit">حفظ</button></div>
+      </form>
+      <form method="post" action="{{ url_for('ui_delete_annotation', ann_id=a.id) }}"
+            onsubmit="return confirm('حذف هذه الملاحظة؟');">
+        <button type="submit" class="danger">حذف الملاحظة</button>
+      </form>
+    </details>
+  </div>
+{% endmacro %}
+
+<article class="reading" id="reading">
+  {% if segments %}
+    {% for segs in segments %}{% set i = loop.index0 %}
+      <p data-p="{{ i }}">{% for text, ids in segs %}{% if ids %}<mark class="ann kind-{{ ann_kind[ids[0]] }}{% if ids|length > 1 %} multi{% endif %}" data-ids="{{ ids|join(' ') }}" tabindex="0">{{ text }}</mark>{% else %}{{ text }}{% endif %}{% endfor %}</p>
+      {% if by_paragraph.get(i) %}<div class="ann-cards" data-p="{{ i }}">{% for a in by_paragraph[i] %}{{ ann_card(a) }}{% endfor %}</div>{% endif %}
+    {% endfor %}
+  {% else %}<p class="error">نص هذا الفصل غير موجود في نسخة المكتبة الشاملة من الكتاب (فيها العنوان فقط).</p>{% endif %}
+</article>
+
+{% if unanchored %}
+<section class="card">
+  <h2>ملاحظات لم يُعثر على نصها</h2>
+  <p class="muted">تغيّر نص الفصل بعد إضافتها فلم يُعثر على الجملة المحددة. الملاحظات محفوظة كما هي.</p>
+  {% for a in unanchored %}{{ ann_card(a)|replace(' hidden>', '>') }}{% endfor %}
+</section>
+{% endif %}
+
+{# The ✎ button shown next to a text selection, and the form it opens under the paragraph. #}
+<button type="button" id="ann-add" class="ann-add" hidden>✎ ملاحظة</button>
+<form method="post" action="{{ url_for('ui_add_annotation', section_id=s.id) }}" id="ann-new" class="ann-card ann-form" hidden>
+  <input type="hidden" name="quote"><input type="hidden" name="prefix"><input type="hidden" name="suffix"><input type="hidden" name="paragraph">
+  <blockquote class="ann-quote" id="ann-new-quote"></blockquote>
+  <div class="kind-picker">{% for k, label in kinds.items() %}
+    <label class="kind-{{ k }}"><input type="radio" name="kind" value="{{ k }}" {% if loop.first %}checked{% endif %}> {{ label }}</label>{% endfor %}
+  </div>
+  <textarea name="body" rows="4" placeholder="ملاحظتك على هذا النص…" required></textarea>
+  <div class="note-actions">
+    <button type="submit">حفظ</button>
+    <button type="button" class="link" id="ann-cancel">إلغاء</button>
+    <span class="muted">Ctrl+Enter للحفظ</span>
+  </div>
+</form>
+
+<section id="note" class="card note">
+  <h2>ملاحظتي العامة على الفصل</h2>
+  {% if saved %}<p class="saved">✓ تم الحفظ</p>{% endif %}
+  {% if note %}
+    <div class="note-body">{{ note.body }}</div>
+    <p class="muted">آخر تعديل: {{ note.updated_at[:16] }}</p>
+  {% endif %}
+  <details {% if not note %}open{% endif %}>
+    <summary>{% if note %}تعديل الملاحظة{% else %}كتابة ملاحظة{% endif %}</summary>
+    <form method="post" action="{{ url_for('ui_save_note', section_id=s.id) }}" id="note-form">
+      <textarea name="body" rows="8" dir="rtl"
+        placeholder="فوائد، مسائل للتدريس، مقارنة بالكتب الأخرى، أسئلة…">{{ note.body if note else '' }}</textarea>
+      <div class="note-actions">
+        <button type="submit">حفظ</button>
+        <span class="muted">Ctrl+Enter للحفظ · احذف النص كله واحفظ لحذف الملاحظة</span>
+      </div>
+    </form>
+  </details>
+</section>
+
+<nav class="pager">
+  <span>{% if s.previous %}→ <a href="{{ url_for('ui_section', section_id=s.previous.id) }}">{{ s.previous.name }}</a>{% endif %}</span>
+  <span>{% if s.next %}<a href="{{ url_for('ui_section', section_id=s.next.id) }}">{{ s.next.name }}</a> ←{% endif %}</span>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+  const reading = document.getElementById("reading");
+  const addBtn = document.getElementById("ann-add");
+  const form = document.getElementById("ann-new");
+  const CONTEXT = 32;
+  let pending = null;  // {p, quote, prefix, suffix}
+
+  // Ctrl+Enter submits any note form on the page.
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && e.target.form) e.target.form.requestSubmit();
+  });
+
+  // --- clicking a highlight shows its note(s) under the paragraph
+  function toggleCards(ids, show) {
+    ids.forEach((id) => {
+      const card = document.getElementById("ann-" + id);
+      if (card) card.hidden = show === undefined ? !card.hidden : !show;
+    });
+  }
+  reading.addEventListener("click", (e) => {
+    const mark = e.target.closest("mark.ann");
+    if (mark && window.getSelection().isCollapsed) toggleCards(mark.dataset.ids.split(" "));
+  });
+  reading.addEventListener("keydown", (e) => {
+    const mark = e.target.closest && e.target.closest("mark.ann");
+    if (mark && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleCards(mark.dataset.ids.split(" ")); }
+  });
+  document.querySelectorAll(".ann-close").forEach((b) => b.addEventListener("click", () => {
+    b.closest(".ann-card").hidden = true;
+  }));
+
+  // --- selecting text offers the ✎ button
+  function paragraphOf(node) {
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    return el && el.closest("#reading p[data-p]");
+  }
+  function currentSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    const p = paragraphOf(range.startContainer);
+    if (!p) return null;
+    if (p !== paragraphOf(range.endContainer)) return { error: "حدد نصًا داخل فقرة واحدة" };
+    const before = document.createRange();
+    before.selectNodeContents(p);
+    before.setEnd(range.startContainer, range.startOffset);
+    let start = before.toString().length;
+    let quote = range.toString();
+    const lead = quote.length - quote.trimStart().length;
+    quote = quote.trim();
+    start += lead;
+    if (!quote) return null;
+    const text = p.textContent;
+    return { p, rect: range.getBoundingClientRect(), quote,
+             prefix: text.slice(Math.max(0, start - CONTEXT), start),
+             suffix: text.slice(start + quote.length, start + quote.length + CONTEXT) };
+  }
+  function showButton() {
+    const sel = currentSelection();
+    if (!sel) { addBtn.hidden = true; return; }
+    if (sel.error) { addBtn.hidden = false; addBtn.textContent = sel.error; addBtn.disabled = true; }
+    else { addBtn.hidden = false; addBtn.textContent = "✎ ملاحظة"; addBtn.disabled = false; pending = sel; }
+    addBtn.style.top = (window.scrollY + sel.rect.top - 40) + "px";
+    addBtn.style.left = (window.scrollX + sel.rect.left + sel.rect.width / 2 - 45) + "px";
+  }
+  let timer;
+  document.addEventListener("selectionchange", () => { clearTimeout(timer); timer = setTimeout(showButton, 250); });
+  addBtn.addEventListener("mousedown", (e) => e.preventDefault());  // keep the selection
+  addBtn.addEventListener("click", () => {
+    if (!pending) return;
+    form.elements.quote.value = pending.quote;
+    form.elements.prefix.value = pending.prefix;
+    form.elements.suffix.value = pending.suffix;
+    form.elements.paragraph.value = pending.p.dataset.p;
+    document.getElementById("ann-new-quote").textContent = pending.quote;
+    pending.p.after(form);
+    form.hidden = false;
+    addBtn.hidden = true;
+    window.getSelection().removeAllRanges();
+    form.elements.body.focus();
+  });
+  document.getElementById("ann-cancel").addEventListener("click", () => { form.hidden = true; form.reset(); });
+
+  // Opened from a link (#ann-12 or ?ann=12): scroll to it.
+  const target = location.hash.startsWith("#ann-") && document.querySelector(location.hash);
+  if (target) { target.hidden = false; target.scrollIntoView({ block: "center" }); }
+})();
+</script>
+{% endblock %}

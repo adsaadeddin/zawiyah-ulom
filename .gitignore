@@ -8,3 +8,4 @@ data/fiqh.db
 data/notes.db
 data/notes.db-*
 data/backups/
+data/staging/

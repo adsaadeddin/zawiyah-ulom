@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="search" action="{{ url_for('ui_home') }}" method="get">
+  <input type="search" name="query" value="{{ query }}" placeholder="ابحث في كتب الفقه… مثال: فروض الوضوء" autofocus>
+  <select name="tag" aria-label="الموضوع">
+    <option value="">كل الموضوعات</option>
+    {% for t in tags %}<option value="{{ t.name }}" {% if t.name == tag %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+  </select>
+  <button type="submit">بحث</button>
+</form>
+
+<p>{% for t in tags %}<a class="tag {% if t.name == tag %}active{% endif %}" href="{{ url_for('ui_home', tag=t.name, query=query or None) }}">{{ t.name }}</a>{% endfor %}</p>
+
+{% if results is not none %}
+  {% if note_results or ann_results %}
+    <h2>في ملاحظاتي ({{ (note_results|length) + (ann_results|length) }})</h2>
+    {% for a in ann_results %}
+      <div class="ann-card kind-{{ a.kind }}">
+        <div class="ann-head">
+          <span class="kind-badge kind-{{ a.kind }}">{{ kinds[a.kind] }}</span>
+          {% if a.section_id %}<a href="{{ url_for('ui_section', section_id=a.section_id, ann=a.id) }}#ann-{{ a.id }}">{{ a.book_title }} › {{ a.section_name }}</a>
+          {% else %}<span class="muted">ملاحظة غير مرتبطة</span>{% endif %}
+        </div>
+        <blockquote class="ann-quote">{{ a.quote }}</blockquote>
+        <div class="note-body clamp">{{ a.body }}</div>
+      </div>
+    {% endfor %}
+    {% for n in note_results %}
+      <div class="card note">
+        <div class="crumbs">{% if n.section_id %}{{ n.book_title }} › {{ n.chapter_name }}{% else %}ملاحظة غير مرتبطة{% endif %}</div>
+        {% if n.section_id %}<a href="{{ url_for('ui_section', section_id=n.section_id) }}#note"><strong>{{ n.section_name }}</strong></a>{% endif %}
+        <div class="note-body clamp">{{ n.body }}</div>
+      </div>
+    {% endfor %}
+  {% endif %}
+  <h2>في الكتب: {{ results|length }} نتيجة{% if results|length == 100 %} (أول ١٠٠){% endif %}</h2>
+  {% for r in results %}
+    <div class="card">
+      <div class="crumbs">{{ r.book_title }} › {{ r.chapter_name }}</div>
+      <a href="{{ url_for('ui_section', section_id=r.section_id) }}"><strong>{{ r.section_name }}</strong></a>
+      <div class="snippet">{{ r.snippet|safe }}</div>
+    </div>
+  {% else %}
+    <p class="muted">لا نتائج. جرّب كلمة أخرى أو صيغة مختلفة (مثلاً «فروض» بدل «فرائض»).</p>
+  {% endfor %}
+
+{% elif tag_chapters is not none %}
+  <h2>أبواب موضوع «{{ tag }}»</h2>
+  {% for c in tag_chapters %}
+    <div class="card">
+      <div class="crumbs">{{ c.book_title }}</div>
+      <a href="{{ url_for('ui_book', book_id=c.book_id) }}#ch{{ c.chapter_id }}"><strong>{{ c.chapter_name }}</strong></a>
+      <span class="muted"> · {{ c.section_count }} فصل</span>
+    </div>
+  {% endfor %}
+
+{% else %}
+  <h2>الكتب</h2>
+  {% for b in books %}
+    <div class="card">
+      <a href="{{ url_for('ui_book', book_id=b.id) }}"><strong>{{ b.title }}</strong></a>
+      <div class="muted">{% if b.author_id %}<a href="{{ url_for('ui_tarjama', scholar_id=b.author_id) }}">{{ b.author }}</a>{% else %}{{ b.author }}{% endif %}{% if b.year_death_hijri %} (ت {{ b.year_death_hijri }} هـ){% endif %} · {{ b.chapter_count }} باب</div>
+    </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

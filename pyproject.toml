@@ -25,6 +25,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 zawiyah_ulom = [
     "web/templates/*.html",
+    "web/static/*",
     "static_site/templates/*.html",
     "static_site/assets/*",
 ]

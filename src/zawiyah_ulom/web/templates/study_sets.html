@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}مجموعات القراءة المقارنة{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('ui_study_index') }}">قراءة مقارنة</a></div>
+<h1>مجموعات القراءة المقارنة</h1>
+<p class="muted">كل مجموعة: متن وشروحه. كل شرح يظهر عمودًا بجانب المتن. أضف شرحًا ثالثًا هنا متى أضفته إلى المكتبة.</p>
+{% if msg %}<p class="saved">✓ {{ msg }}</p>{% endif %}
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+{% for st in sets %}
+  <section class="card">
+    <h2>{{ st.matn.title if st.matn else st.matn_key ~ ' (ليس في المكتبة)' }}</h2>
+    {% for key, b in st.shuruh %}
+      <div class="scholar-row">
+        <span>{{ loop.index }}. {{ b.title if b else key ~ ' (ليس في المكتبة)' }}</span>
+        <form method="post" onsubmit="return confirm('إزالة هذا الشرح من المجموعة؟ (لا يُحذف الكتاب)');">
+          <input type="hidden" name="action" value="remove"><input type="hidden" name="matn" value="{{ st.matn_key }}">
+          <input type="hidden" name="sharh" value="{{ key }}"><button type="submit" class="danger">إزالة</button>
+        </form>
+      </div>
+    {% endfor %}
+    <form method="post" class="study-controls">
+      <input type="hidden" name="action" value="add"><input type="hidden" name="matn" value="{{ st.matn_key }}">
+      <select name="sharh" required>
+        <option value="">+ إضافة شرح…</option>
+        {% for key, b in books.items() if key != st.matn_key and key not in (st.shuruh|map('first')|list) %}
+          <option value="{{ key }}">{{ b.title }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="button">إضافة</button>
+    </form>
+  </section>
+{% endfor %}
+
+<section class="card">
+  <h2>مجموعة جديدة</h2>
+  <form method="post" class="study-controls">
+    <input type="hidden" name="action" value="add">
+    <label>المتن <select name="matn" required><option value="">اختر…</option>
+      {% for key, b in books.items() %}<option value="{{ key }}">{{ b.title }}</option>{% endfor %}</select></label>
+    <label>الشرح الأول <select name="sharh" required><option value="">اختر…</option>
+      {% for key, b in books.items() %}<option value="{{ key }}">{{ b.title }}</option>{% endfor %}</select></label>
+    <button type="submit" class="button">إنشاء</button>
+  </form>
+</section>
+{% endblock %}

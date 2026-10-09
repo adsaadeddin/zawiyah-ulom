@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS notes.Annotation (
     prefix      TEXT NOT NULL DEFAULT '',  -- context before / after the quote,
     suffix      TEXT NOT NULL DEFAULT '',  -- to pick the right one of repeated phrases
     paragraph   INTEGER,                -- paragraph index when created (a hint only)
+    scope       TEXT NOT NULL DEFAULT 'passage',  -- 'passage' (highlighted) or 'paragraph' (whole paragraph)
     body        TEXT NOT NULL,
     created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
@@ -71,11 +72,23 @@ CREATE VIRTUAL TABLE IF NOT EXISTS notes.AnnotationFTS USING fts5(
 """
 
 
+# Columns added after notes.db was first created: (table, column, declaration).
+NOTES_MIGRATIONS = [
+    ("Annotation", "scope", "TEXT NOT NULL DEFAULT 'passage'"),
+]
+
+
 def attach_notes(conn: sqlite3.Connection, path: Path = NOTES_PATH) -> None:
-    """Attach notes.db to `conn` as schema `notes`, creating it if needed."""
+    """Attach notes.db to `conn` as schema `notes`, creating it if needed and
+    adding any columns introduced since it was created (existing notes untouched)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     conn.execute("ATTACH DATABASE ? AS notes", (str(path),))
     conn.executescript(NOTES_SCHEMA)
+    for table, column, decl in NOTES_MIGRATIONS:
+        cols = {r[1] for r in conn.execute(f"PRAGMA notes.table_info({table})")}
+        if column not in cols:
+            conn.execute(f"ALTER TABLE notes.{table} ADD COLUMN {column} {decl}")
+            conn.commit()
 
 
 def get_note(conn: sqlite3.Connection, section_key: str) -> dict | None:
@@ -199,7 +212,13 @@ def _index_annotation(conn: sqlite3.Connection, ann_id: int, body: str, quote: s
 
 
 def add_annotation(conn: sqlite3.Connection, section_key: str, *, quote: str, body: str,
-                   kind: str, prefix: str = "", suffix: str = "", paragraph: int | None = None) -> int:
+                   kind: str, prefix: str = "", suffix: str = "", paragraph: int | None = None,
+                   scope: str = "passage") -> int:
+    """scope 'passage': a note on selected words (highlighted in the text).
+    scope 'paragraph': a note on a whole paragraph (study view's notes column);
+    quote is the paragraph's text, used to find it again; nothing is highlighted."""
+    if scope not in ("passage", "paragraph"):
+        raise AnnotationError("نطاق الملاحظة غير معروف")
     quote, body = (quote or "").strip(), _clean(body)
     if not quote:
         raise AnnotationError("حدد نصًا في الفصل أولًا")
@@ -211,10 +230,10 @@ def add_annotation(conn: sqlite3.Connection, section_key: str, *, quote: str, bo
         raise AnnotationError("نوع الملاحظة غير معروف")
     with conn:
         ann_id = conn.execute(
-            """INSERT INTO notes.Annotation (section_key, kind, quote, prefix, suffix, paragraph, body)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO notes.Annotation (section_key, kind, quote, prefix, suffix, paragraph, scope, body)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (section_key, kind, quote, (prefix or "")[-ANCHOR_CONTEXT:], (suffix or "")[:ANCHOR_CONTEXT],
-             paragraph, body)).lastrowid
+             paragraph, scope, body)).lastrowid
         _index_annotation(conn, ann_id, body, quote)
     return ann_id
 
@@ -271,6 +290,19 @@ def _find_quote(par: str, ann: dict) -> tuple[int, int] | None:
     return None
 
 
+def paragraph_of(paragraphs: list[str], ann: dict) -> int | None:
+    """Index of the paragraph a whole-paragraph note belongs to: the hinted one if
+    its text still matches the stored quote, otherwise the paragraph containing it."""
+    quote = ann["quote"]
+    hint = ann.get("paragraph")
+    key = re.sub(r"\s+", " ", quote)[:120]
+    def matches(par):
+        return key in re.sub(r"\s+", " ", par) or (has_arabic(key) and re.search(fuzzy_pattern(key), par))
+    if hint is not None and 0 <= hint < len(paragraphs) and matches(paragraphs[hint]):
+        return hint
+    return next((i for i, par in enumerate(paragraphs) if matches(par)), None)
+
+
 def anchor_annotations(paragraphs: list[str], annotations: list[dict]):
     """Locate annotations in a section's paragraphs.
 
@@ -284,6 +316,13 @@ def anchor_annotations(paragraphs: list[str], annotations: list[dict]):
     by_paragraph: dict[int, list[dict]] = {}
     unanchored = []
     for ann in annotations:
+        if ann.get("scope", "passage") == "paragraph":
+            i = paragraph_of(paragraphs, ann)
+            if i is None:
+                unanchored.append(ann)
+            else:
+                by_paragraph.setdefault(i, []).append(ann)
+            continue
         hint = ann.get("paragraph")
         order = ([hint] if hint is not None and 0 <= hint < len(paragraphs) else []) + \
                 [i for i in range(len(paragraphs)) if i != hint]
@@ -307,7 +346,7 @@ def anchor_annotations(paragraphs: list[str], annotations: list[dict]):
 
 
 _ANNOTATION_WITH_SECTION = """
-    SELECT a.id, a.section_key, a.kind, a.quote, a.body, a.created_at, a.updated_at,
+    SELECT a.id, a.section_key, a.kind, a.quote, a.body, a.scope, a.created_at, a.updated_at,
            s.id AS section_id, s.name AS section_name,
            c.id AS chapter_id, c.name AS chapter_name,
            b.id AS book_id, b.title AS book_title
@@ -348,3 +387,45 @@ def annotation_counts(conn: sqlite3.Connection) -> dict[str, int]:
     """section_key -> number of annotations (for marking tables of contents)."""
     return {r[0]: r[1] for r in conn.execute(
         "SELECT section_key, COUNT(*) FROM notes.Annotation GROUP BY section_key")}
+
+
+def annotated_slice(content: str, annotations: list[dict], lo: int = 0, hi: int | None = None) -> list[dict]:
+    """The paragraphs of content[lo:hi], ready to display with highlights.
+
+    Used where only part of a section is shown (the study view shows a matn
+    paragraph, or a commentary passage between two anchors). Returns one dict
+    per displayed paragraph:
+      p         paragraph index within the section (what new notes record)
+      offset    where the displayed text starts within that paragraph
+      segments  [(text, [annotation ids])] covering the displayed text
+      cards     annotations whose highlight starts in this displayed text
+    Each annotation's card appears once, where its highlight starts."""
+    hi = len(content) if hi is None else hi
+    paragraphs = content.split("\n")
+    segments, _, _ = anchor_annotations(paragraphs, annotations)
+    by_id = {a["id"]: a for a in annotations}
+    out, start = [], 0
+    for i, par in enumerate(paragraphs):
+        end = start + len(par)
+        a, b = max(lo, start) - start, min(hi, end) - start
+        if a < b and par[a:b].strip():
+            segs, cards, pos, seen = [], [], 0, set()
+            for text, ids in segments[i]:
+                s0, s1 = pos, pos + len(text)
+                pos = s1
+                for aid in ids:  # where each highlight starts in this paragraph
+                    if aid not in seen:
+                        seen.add(aid)
+                        if a <= s0 < b:
+                            cards.append(by_id[aid])
+                if s1 <= a or s0 >= b:  # segment entirely outside the slice
+                    continue
+                segs.append((text[max(a, s0) - s0:min(b, s1) - s0], ids))
+            # trim the slice's outer whitespace, as the plain view does
+            if segs:
+                segs[0] = (segs[0][0].lstrip(), segs[0][1])
+                segs[-1] = (segs[-1][0].rstrip(), segs[-1][1])
+            out.append({"p": i, "offset": a + (len(par[a:b]) - len(par[a:b].lstrip())),
+                        "segments": [s for s in segs if s[0]], "cards": cards})
+        start = end + 1  # the "\n" between paragraphs
+    return out

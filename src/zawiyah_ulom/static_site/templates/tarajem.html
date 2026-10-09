@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }} — التراجم{% endblock %}
+{% macro death(x) -%}
+  {%- if x.year_death_hijri or x.year_death_gregorian -%}(ت {% if x.year_death_hijri %}{{ x.year_death_hijri }} هـ{% endif %}{% if x.year_death_hijri and x.year_death_gregorian %} / {% endif %}{% if x.year_death_gregorian %}{{ x.year_death_gregorian }} م{% endif %}){%- endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="crumbs"><a href="index.html">التراجم</a></div>
+<h1>{{ s.name }}</h1>
+<dl class="facts">
+  {% if s.nickname %}<dt>اللقب أو الكنية</dt><dd>{{ s.nickname }}</dd>{% endif %}
+  {% if s.full_arabic_name %}<dt>الاسم الكامل</dt><dd>{{ s.full_arabic_name }}</dd>{% endif %}
+  {% if s.year_birth_hijri or s.year_birth_gregorian %}<dt>الولادة</dt><dd>{% if s.year_birth_hijri %}{{ s.year_birth_hijri }} هـ{% endif %}{% if s.year_birth_hijri and s.year_birth_gregorian %} / {% endif %}{% if s.year_birth_gregorian %}{{ s.year_birth_gregorian }} م{% endif %}</dd>{% endif %}
+  {% if s.year_death_hijri or s.year_death_gregorian %}<dt>الوفاة</dt><dd>{{ death(s)[1:-1] }}</dd>{% endif %}
+  {% if s.country %}<dt>البلد</dt><dd>{{ s.country }}</dd>{% endif %}
+</dl>
+
+<section class="card">
+  <h2>الترجمة</h2>
+  {% if s.bio %}<div class="note-body">{{ s.bio }}</div>{% else %}<p class="muted">لم تُكتب الترجمة بعد.</p>{% endif %}
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <h2>شيوخه ({{ s.teachers|length }})</h2>
+    {% for t in s.teachers %}<div><a href="{{ t.id }}.html">{{ t.name }}</a> <span class="muted">{{ death(t) }}</span></div>{% else %}<p class="muted">—</p>{% endfor %}
+  </section>
+  <section class="card">
+    <h2>تلاميذه ({{ s.students|length }})</h2>
+    {% for t in s.students %}<div><a href="{{ t.id }}.html">{{ t.name }}</a> <span class="muted">{{ death(t) }}</span></div>{% else %}<p class="muted">—</p>{% endfor %}
+  </section>
+</div>
+
+{% if s.books %}
+<section class="card">
+  <h2>كتبه في المكتبة</h2>
+  {% for b in s.books %}<div><a href="{{ root }}book/{{ b.id }}.html">{{ b.title }}</a></div>{% endfor %}
+</section>
+{% endif %}
+{% if s.urls %}
+<section class="card">
+  <h2>روابط</h2>
+  {% for u in s.urls %}<div><a href="{{ u.url }}" target="_blank" rel="noopener">{{ u.url }}</a></div>{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

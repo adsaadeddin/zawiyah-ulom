@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% from "_ann_macros.html" import marked, ann_card, new_note_widgets %}
+{% block title %}{{ view.chapter.name }} — قراءة مقارنة{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('ui_study_index') }}">قراءة مقارنة</a> › {{ st.matn.title }}</div>
+<div class="page-head">
+  <h1>{{ view.chapter.name }}</h1>
+  <a class="button" href="{{ url_for('ui_study_print', matn_id=st.matn.id, ch=view.chapter.id, s=chosen, notes=1 if show_notes else 0) }}" target="_blank">نسخة للطباعة</a>
+</div>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="get" class="study-controls" id="study-controls">
+  <label>الباب
+    <select name="ch" onchange="this.form.submit()">
+      {% for c in view.chapters %}<option value="{{ c.id }}" {% if c.id == view.chapter.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <span class="study-books">
+    {% for b in st.shuruh %}
+      <label><input type="checkbox" name="s" value="{{ b.id }}" {% if b.id in chosen %}checked{% endif %} onchange="this.form.submit()"> {{ b.short }}</label>
+    {% endfor %}
+    <input type="hidden" name="notes" value="0">
+    <label><input type="checkbox" name="notes" value="1" {% if show_notes %}checked{% endif %} onchange="this.form.submit()"> ملاحظاتي</label>
+  </span>
+</form>
+<p class="muted">
+  {% for b in shuruh %}{{ b.short }}: رُبط {{ view.coverage[loop.index0] }}٪ من فقرات المتن{% if not loop.last %} · {% endif %}{% endfor %}.
+  الفقرة غير المربوطة تُعرض مع شرح الفقرة التي قبلها، فلا يفوت شيء من الشرح.
+  <span class="hint">· حدد أي نص في المتن أو الشروح لتضيف ملاحظة عليه.</span>
+</p>
+
+{% macro note_compact(a) %}
+  <div class="note-compact kind-{{ a.kind }}" id="ann-{{ a.id }}">
+    <span class="kind-badge kind-{{ a.kind }}">{{ kinds[a.kind] }}</span>
+    <div class="note-body">{{ a.body }}</div>
+    <details>
+      <summary class="muted">تعديل</summary>
+      <form method="post" action="{{ url_for('ui_edit_annotation', ann_id=a.id) }}" class="ann-form">
+        <input type="hidden" name="next" value="{{ here }}">
+        <div class="kind-picker">{% for k, label in kinds.items() %}
+          <label class="kind-{{ k }}"><input type="radio" name="kind" value="{{ k }}" {% if k == a.kind %}checked{% endif %}> {{ label }}</label>{% endfor %}</div>
+        <textarea name="body" rows="3" required>{{ a.body }}</textarea>
+        <div class="note-actions"><button type="submit">حفظ</button></div>
+      </form>
+      <form method="post" action="{{ url_for('ui_delete_annotation', ann_id=a.id) }}" onsubmit="return confirm('حذف هذه الملاحظة؟');">
+        <input type="hidden" name="next" value="{{ here }}">
+        <button type="submit" class="danger">حذف</button>
+      </form>
+    </details>
+  </div>
+{% endmacro %}
+
+{% for row in view.rows %}
+<section class="study-row" id="m{{ row.number }}">
+  <div class="matn-box">
+    <a class="num" href="#m{{ row.number }}">{{ row.number }}</a>
+    <div class="matn-text">
+      {% for d in row.matn_display %}
+        <p data-section="{{ row.matn_section.id }}" data-p="{{ d.p }}">{{ marked(d.segments, view.ann_kind) }}</p>
+        {% for a in d.cards %}{{ ann_card(a, kinds, here, open_ann) }}{% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="shuruh cols-{{ row.cols|length }}{% if show_notes %} with-notes{% endif %}">
+    {% for col in row.cols %}{% set b = shuruh[loop.index0] %}
+      <div class="sharh">
+        <div class="sharh-head" title="{{ b.title }}">{{ b.short }}{% if b.author %} — {{ b.author }}{% endif %}</div>
+        {% if col.merged %}
+          <p class="muted">↑ مشروحة مع الفقرة السابقة</p>
+        {% else %}
+          <div class="sharh-text">
+            {% for part in col.parts %}
+              <div class="sharh-section"><a href="{{ url_for('ui_section', section_id=part.section.id) }}">{{ part.section.name }}</a></div>
+              {% for d in part.display %}
+                <p data-section="{{ part.section.id }}" data-p="{{ d.p }}">{{ marked(d.segments, view.ann_kind) }}</p>
+                {% for a in d.cards %}{{ ann_card(a, kinds, here, open_ann) }}{% endfor %}
+              {% endfor %}
+            {% endfor %}
+          </div>
+          <button type="button" class="link more" hidden>عرض الكل ▾</button>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    {% if show_notes %}
+    <aside class="notes-col">
+      <div class="sharh-head">ملاحظاتي</div>
+      {% for a in row.para_notes %}{{ note_compact(a) }}{% endfor %}
+      {% if row.passage_notes %}
+        <ul class="passage-notes">
+          {% for a in row.passage_notes %}
+            <li class="kind-{{ a.kind }}"><a href="#ann-{{ a.id }}" data-open-ann="{{ a.id }}">
+              <span class="dot"></span><span class="q">«{{ a.quote[:40] }}{% if a.quote|length > 40 %}…{% endif %}»</span>
+              <span class="b">{{ a.body[:80] }}{% if a.body|length > 80 %}…{% endif %}</span></a></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <details class="add-para-note" {% if not row.para_notes and not row.passage_notes %}{% endif %}>
+        <summary>+ ملاحظة على الفقرة</summary>
+        <form method="post" action="{{ url_for('ui_add_annotation', section_id=row.matn_section.id) }}" class="ann-form">
+          <input type="hidden" name="scope" value="paragraph">
+          <input type="hidden" name="quote" value="{{ row.text }}">
+          <input type="hidden" name="paragraph" value="{{ row.matn_p }}">
+          <input type="hidden" name="next" value="{{ here }}">
+          <div class="kind-picker">{% for k, label in kinds.items() %}
+            <label class="kind-{{ k }}"><input type="radio" name="kind" value="{{ k }}" {% if loop.first %}checked{% endif %}> {{ label }}</label>{% endfor %}</div>
+          <textarea name="body" rows="3" placeholder="ملاحظتك على هذه الفقرة…" required></textarea>
+          <div class="note-actions"><button type="submit">حفظ</button></div>
+        </form>
+      </details>
+    </aside>
+    {% endif %}
+  </div>
+</section>
+{% else %}
+  <p class="muted">لا فقرات في هذا الباب.</p>
+{% endfor %}
+
+<nav class="pager">
+  <span>{% if view.prev %}→ <a href="{{ url_for('ui_study', matn_id=st.matn.id, ch=view.prev.id, s=chosen, notes=1 if show_notes else 0) }}">{{ view.prev.name }}</a>{% endif %}</span>
+  <span>{% if view.next %}<a href="{{ url_for('ui_study', matn_id=st.matn.id, ch=view.next.id, s=chosen, notes=1 if show_notes else 0) }}">{{ view.next.name }}</a> ←{% endif %}</span>
+</nav>
+
+{{ new_note_widgets(kinds, here) }}
+<script>
+  // Long explanations start collapsed; "عرض الكل" expands one, clicking again collapses it.
+  // A passage with an open note card (after saving) starts expanded.
+  document.querySelectorAll(".sharh-text").forEach((box) => {
+    const btn = box.nextElementSibling;
+    const hasOpenCard = box.querySelector(".ann-card:not([hidden])") || (location.hash && box.querySelector(location.hash));
+    if (hasOpenCard || box.scrollHeight <= box.clientHeight + 8) { box.classList.add("open"); return; }
+    btn.hidden = false;
+    btn.addEventListener("click", () => {
+      const open = box.classList.toggle("open");
+      btn.textContent = open ? "طيّ ▴" : "عرض الكل ▾";
+    });
+  });
+  // Opening a card inside a collapsed passage expands the passage.
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest && e.target.closest("[data-open-ann], mark.ann");
+    const box = t && document.getElementById("ann-" + (t.dataset.openAnn || (t.dataset.ids || "").split(" ")[0]));
+    const passage = box && box.closest(".sharh-text");
+    if (passage) passage.classList.add("open");
+  });
+</script>
+{% endblock %}

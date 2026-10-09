@@ -18,7 +18,7 @@
   {% for b in books %}
     <div class="card">
       <a href="book/{{ b.id }}.html"><strong>{{ b.title }}</strong></a>
-      <div class="muted">{{ b.author }}{% if b.year_death_hijri %} (ت {{ b.year_death_hijri }} هـ){% endif %}
+      <div class="muted">{% if b.author_id %}<a href="tarajem/{{ b.author_id }}.html">{{ b.author }}</a>{% else %}{{ b.author }}{% endif %}{% if b.year_death_hijri %} (ت {{ b.year_death_hijri }} هـ){% endif %}
         · {{ b.chapters|length }} باب · {{ b.section_count }} فصل</div>
     </div>
   {% endfor %}

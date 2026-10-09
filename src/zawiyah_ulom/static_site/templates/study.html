@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ view.chapter.name }} — قراءة مقارنة{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ root }}study/index.html">قراءة مقارنة</a> › {{ st.matn.title }}</div>
+<h1>{{ view.chapter.name }}</h1>
+<p class="study-controls">
+  <label>الباب
+    <select onchange="location.href = this.value + '.html'">
+      {% for c in view.chapters %}<option value="{{ c.id }}" {% if c.id == view.chapter.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+    </select>
+  </label>
+</p>
+<p class="muted">
+  {% for b in shuruh %}{{ b.short }}: رُبط {{ view.coverage[loop.index0] }}٪ من فقرات المتن{% if not loop.last %} · {% endif %}{% endfor %}.
+  الفقرة غير المربوطة تُعرض مع شرح الفقرة التي قبلها.
+</p>
+
+{% for row in view.rows %}
+<section class="study-row" id="m{{ row.number }}">
+  <div class="matn-box">
+    <a class="num" href="#m{{ row.number }}">{{ row.number }}</a>
+    <span class="matn-text">{{ row.text }}</span>
+    <a class="muted open-link" href="{{ root }}section/{{ row.matn_section.id }}.html" title="افتح المتن">↗</a>
+  </div>
+  <div class="shuruh cols-{{ row.cols|length }}">
+    {% for col in row.cols %}{% set b = shuruh[loop.index0] %}
+      <div class="sharh">
+        <div class="sharh-head" title="{{ b.title }}">{{ b.short }}{% if b.author %} — {{ b.author }}{% endif %}</div>
+        {% if col.merged %}
+          <p class="muted">↑ مشروحة مع الفقرة السابقة</p>
+        {% else %}
+          <div class="sharh-text">
+            {% for part in col.parts %}
+              <div class="sharh-section"><a href="{{ root }}section/{{ part.section.id }}.html">{{ part.section.name }}</a></div>
+              {% for p in part.text.split('\n') %}<p>{{ p }}</p>{% endfor %}
+            {% endfor %}
+          </div>
+          <button type="button" class="link more" hidden>عرض الكل ▾</button>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<nav class="pager">
+  <span>{% if view.prev %}→ <a href="{{ view.prev.id }}.html">{{ view.prev.name }}</a>{% endif %}</span>
+  <span>{% if view.next %}<a href="{{ view.next.id }}.html">{{ view.next.name }}</a> ←{% endif %}</span>
+</nav>
+<script>
+  document.querySelectorAll(".sharh-text").forEach((box) => {
+    const btn = box.nextElementSibling;
+    if (box.scrollHeight <= box.clientHeight + 8) { box.classList.add("open"); return; }
+    btn.hidden = false;
+    btn.addEventListener("click", () => {
+      const open = box.classList.toggle("open");
+      btn.textContent = open ? "طيّ ▴" : "عرض الكل ▾";
+    });
+  });
+</script>
+{% endblock %}

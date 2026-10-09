@@ -5,8 +5,9 @@
 <div class="muted">
   {% if book.author_id %}<a href="{{ url_for('ui_tarjama', scholar_id=book.author_id) }}" title="ترجمة المؤلف">{{ book.author }}</a>{% else %}{{ book.author }}{% endif %}{% if book.year_death_hijri %} (ت {{ book.year_death_hijri }} هـ){% endif %}
   {% if book.publisher %} · {{ book.publisher }}{% endif %}
-  {% if book.source_url %} · <a href="{{ book.source_url }}" target="_blank" rel="noopener">المصدر: المكتبة الشاملة</a>{% endif %}
+  {% if book.source_url %} · <a href="{{ book.source_url }}" target="_blank" rel="noopener">المصدر</a>{% endif %}
 </div>
+{% if is_matn %}<p><a class="button" href="{{ url_for('ui_study', matn_id=book.id) }}">قراءة مقارنة مع الشروح ←</a></p>{% endif %}
 
 <h2>فهرس الموضوعات</h2>
 {% for ch in book.chapters %}

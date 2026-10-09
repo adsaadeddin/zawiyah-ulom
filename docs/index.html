@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>زاوية العلوم</title>
-  <meta name="description" content="بحث نصي في كتب الفقه الشافعي: فتح القريب، كفاية الأخيار، بشرى الكريم">
+  <meta name="description" content="زاوية العلوم: مكتبة وبحث في كتب العلوم الشرعية، مع قراءة مقارنة للمتون وشروحها وتراجم العلماء">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Kufi+Arabic:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
@@ -13,18 +13,22 @@
   <header><div class="wrap">
     <a class="brand" href="index.html">زاوية العلوم</a>
     <span class="muted">نسخة تجريبية</span>
+    <nav>
+      <a href="study/index.html">قراءة مقارنة</a>
+      <a href="tarajem/index.html">التراجم</a>
+    </nav>
   </div></header>
   <main class="wrap">
 <form class="search" id="search-form" action="index.html" method="get">
   <input type="search" name="q" id="q" placeholder="ابحث في كتب الفقه… مثال: فروض الوضوء" autocomplete="off" autofocus>
   <select name="tag" id="tag" aria-label="الموضوع">
     <option value="">كل الموضوعات</option>
-    <option value="عبادات">عبادات</option><option value="صلاة">صلاة</option><option value="طهارة">طهارة</option><option value="زكاة">زكاة</option><option value="صيام">صيام</option><option value="معاملات">معاملات</option><option value="أحوال شخصية">أحوال شخصية</option><option value="حج">حج</option><option value="عقوبات">عقوبات</option><option value="أضحية">أضحية</option><option value="جنائز">جنائز</option><option value="جهاد">جهاد</option><option value="نكاح">نكاح</option><option value="بيوع">بيوع</option><option value="جنايات">جنايات</option><option value="حدود">حدود</option><option value="مواريث">مواريث</option><option value="أطعمة">أطعمة</option><option value="أيمان ونذور">أيمان ونذور</option><option value="سبق ورمي">سبق ورمي</option><option value="صيد وذبائح">صيد وذبائح</option><option value="طلاق">طلاق</option><option value="عتق">عتق</option><option value="قضاء وشهادات">قضاء وشهادات</option><option value="وصايا">وصايا</option>
+    <option value="عبادات">عبادات</option><option value="صلاة">صلاة</option><option value="طهارة">طهارة</option><option value="زكاة">زكاة</option><option value="معاملات">معاملات</option><option value="صيام">صيام</option><option value="عقوبات">عقوبات</option><option value="أحوال شخصية">أحوال شخصية</option><option value="حج">حج</option><option value="أضحية">أضحية</option><option value="جنائز">جنائز</option><option value="جهاد">جهاد</option><option value="نكاح">نكاح</option><option value="بيوع">بيوع</option><option value="جنايات">جنايات</option><option value="حدود">حدود</option><option value="مواريث">مواريث</option><option value="أيمان ونذور">أيمان ونذور</option><option value="سبق ورمي">سبق ورمي</option><option value="صيد وذبائح">صيد وذبائح</option><option value="عتق">عتق</option><option value="قضاء وشهادات">قضاء وشهادات</option><option value="وصايا">وصايا</option><option value="أطعمة">أطعمة</option><option value="طلاق">طلاق</option>
   </select>
   <button type="submit">بحث</button>
 </form>
 
-<p id="tag-chips"><a class="tag" data-tag="عبادات" href="?tag=%D8%B9%D8%A8%D8%A7%D8%AF%D8%A7%D8%AA">عبادات</a><a class="tag" data-tag="صلاة" href="?tag=%D8%B5%D9%84%D8%A7%D8%A9">صلاة</a><a class="tag" data-tag="طهارة" href="?tag=%D8%B7%D9%87%D8%A7%D8%B1%D8%A9">طهارة</a><a class="tag" data-tag="زكاة" href="?tag=%D8%B2%D9%83%D8%A7%D8%A9">زكاة</a><a class="tag" data-tag="صيام" href="?tag=%D8%B5%D9%8A%D8%A7%D9%85">صيام</a><a class="tag" data-tag="معاملات" href="?tag=%D9%85%D8%B9%D8%A7%D9%85%D9%84%D8%A7%D8%AA">معاملات</a><a class="tag" data-tag="أحوال شخصية" href="?tag=%D8%A3%D8%AD%D9%88%D8%A7%D9%84%20%D8%B4%D8%AE%D8%B5%D9%8A%D8%A9">أحوال شخصية</a><a class="tag" data-tag="حج" href="?tag=%D8%AD%D8%AC">حج</a><a class="tag" data-tag="عقوبات" href="?tag=%D8%B9%D9%82%D9%88%D8%A8%D8%A7%D8%AA">عقوبات</a><a class="tag" data-tag="أضحية" href="?tag=%D8%A3%D8%B6%D8%AD%D9%8A%D8%A9">أضحية</a><a class="tag" data-tag="جنائز" href="?tag=%D8%AC%D9%86%D8%A7%D8%A6%D8%B2">جنائز</a><a class="tag" data-tag="جهاد" href="?tag=%D8%AC%D9%87%D8%A7%D8%AF">جهاد</a><a class="tag" data-tag="نكاح" href="?tag=%D9%86%D9%83%D8%A7%D8%AD">نكاح</a><a class="tag" data-tag="بيوع" href="?tag=%D8%A8%D9%8A%D9%88%D8%B9">بيوع</a><a class="tag" data-tag="جنايات" href="?tag=%D8%AC%D9%86%D8%A7%D9%8A%D8%A7%D8%AA">جنايات</a><a class="tag" data-tag="حدود" href="?tag=%D8%AD%D8%AF%D9%88%D8%AF">حدود</a><a class="tag" data-tag="مواريث" href="?tag=%D9%85%D9%88%D8%A7%D8%B1%D9%8A%D8%AB">مواريث</a><a class="tag" data-tag="أطعمة" href="?tag=%D8%A3%D8%B7%D8%B9%D9%85%D8%A9">أطعمة</a><a class="tag" data-tag="أيمان ونذور" href="?tag=%D8%A3%D9%8A%D9%85%D8%A7%D9%86%20%D9%88%D9%86%D8%B0%D9%88%D8%B1">أيمان ونذور</a><a class="tag" data-tag="سبق ورمي" href="?tag=%D8%B3%D8%A8%D9%82%20%D9%88%D8%B1%D9%85%D9%8A">سبق ورمي</a><a class="tag" data-tag="صيد وذبائح" href="?tag=%D8%B5%D9%8A%D8%AF%20%D9%88%D8%B0%D8%A8%D8%A7%D8%A6%D8%AD">صيد وذبائح</a><a class="tag" data-tag="طلاق" href="?tag=%D8%B7%D9%84%D8%A7%D9%82">طلاق</a><a class="tag" data-tag="عتق" href="?tag=%D8%B9%D8%AA%D9%82">عتق</a><a class="tag" data-tag="قضاء وشهادات" href="?tag=%D9%82%D8%B6%D8%A7%D8%A1%20%D9%88%D8%B4%D9%87%D8%A7%D8%AF%D8%A7%D8%AA">قضاء وشهادات</a><a class="tag" data-tag="وصايا" href="?tag=%D9%88%D8%B5%D8%A7%D9%8A%D8%A7">وصايا</a></p>
+<p id="tag-chips"><a class="tag" data-tag="عبادات" href="?tag=%D8%B9%D8%A8%D8%A7%D8%AF%D8%A7%D8%AA">عبادات</a><a class="tag" data-tag="صلاة" href="?tag=%D8%B5%D9%84%D8%A7%D8%A9">صلاة</a><a class="tag" data-tag="طهارة" href="?tag=%D8%B7%D9%87%D8%A7%D8%B1%D8%A9">طهارة</a><a class="tag" data-tag="زكاة" href="?tag=%D8%B2%D9%83%D8%A7%D8%A9">زكاة</a><a class="tag" data-tag="معاملات" href="?tag=%D9%85%D8%B9%D8%A7%D9%85%D9%84%D8%A7%D8%AA">معاملات</a><a class="tag" data-tag="صيام" href="?tag=%D8%B5%D9%8A%D8%A7%D9%85">صيام</a><a class="tag" data-tag="عقوبات" href="?tag=%D8%B9%D9%82%D9%88%D8%A8%D8%A7%D8%AA">عقوبات</a><a class="tag" data-tag="أحوال شخصية" href="?tag=%D8%A3%D8%AD%D9%88%D8%A7%D9%84%20%D8%B4%D8%AE%D8%B5%D9%8A%D8%A9">أحوال شخصية</a><a class="tag" data-tag="حج" href="?tag=%D8%AD%D8%AC">حج</a><a class="tag" data-tag="أضحية" href="?tag=%D8%A3%D8%B6%D8%AD%D9%8A%D8%A9">أضحية</a><a class="tag" data-tag="جنائز" href="?tag=%D8%AC%D9%86%D8%A7%D8%A6%D8%B2">جنائز</a><a class="tag" data-tag="جهاد" href="?tag=%D8%AC%D9%87%D8%A7%D8%AF">جهاد</a><a class="tag" data-tag="نكاح" href="?tag=%D9%86%D9%83%D8%A7%D8%AD">نكاح</a><a class="tag" data-tag="بيوع" href="?tag=%D8%A8%D9%8A%D9%88%D8%B9">بيوع</a><a class="tag" data-tag="جنايات" href="?tag=%D8%AC%D9%86%D8%A7%D9%8A%D8%A7%D8%AA">جنايات</a><a class="tag" data-tag="حدود" href="?tag=%D8%AD%D8%AF%D9%88%D8%AF">حدود</a><a class="tag" data-tag="مواريث" href="?tag=%D9%85%D9%88%D8%A7%D8%B1%D9%8A%D8%AB">مواريث</a><a class="tag" data-tag="أيمان ونذور" href="?tag=%D8%A3%D9%8A%D9%85%D8%A7%D9%86%20%D9%88%D9%86%D8%B0%D9%88%D8%B1">أيمان ونذور</a><a class="tag" data-tag="سبق ورمي" href="?tag=%D8%B3%D8%A8%D9%82%20%D9%88%D8%B1%D9%85%D9%8A">سبق ورمي</a><a class="tag" data-tag="صيد وذبائح" href="?tag=%D8%B5%D9%8A%D8%AF%20%D9%88%D8%B0%D8%A8%D8%A7%D8%A6%D8%AD">صيد وذبائح</a><a class="tag" data-tag="عتق" href="?tag=%D8%B9%D8%AA%D9%82">عتق</a><a class="tag" data-tag="قضاء وشهادات" href="?tag=%D9%82%D8%B6%D8%A7%D8%A1%20%D9%88%D8%B4%D9%87%D8%A7%D8%AF%D8%A7%D8%AA">قضاء وشهادات</a><a class="tag" data-tag="وصايا" href="?tag=%D9%88%D8%B5%D8%A7%D9%8A%D8%A7">وصايا</a><a class="tag" data-tag="أطعمة" href="?tag=%D8%A3%D8%B7%D8%B9%D9%85%D8%A9">أطعمة</a><a class="tag" data-tag="طلاق" href="?tag=%D8%B7%D9%84%D8%A7%D9%82">طلاق</a></p>
 
 <div id="results" aria-live="polite"></div>
 
@@ -32,38 +36,44 @@
   <h2>الكتب</h2>
   
     <div class="card">
+      <a href="book/7.html"><strong>متن أبي شجاع المسمى الغاية والتقريب</strong></a>
+      <div class="muted"><a href="tarajem/7.html">أبو شجاع</a> (ت 593 هـ)
+        · 18 باب · 18 فصل</div>
+    </div>
+  
+    <div class="card">
       <a href="book/4.html"><strong>كفاية الأخيار في حل غاية الإختصار</strong></a>
-      <div class="muted">تقي الدين الحصني (ت 829 هـ)
+      <div class="muted"><a href="tarajem/4.html">تقي الدين الحصني</a> (ت 829 هـ)
         · 19 باب · 149 فصل</div>
     </div>
   
     <div class="card">
       <a href="book/2.html"><strong>فتح القريب المجيب في شرح ألفاظ التقريب = القول المختار في شرح غاية الاختصار (ويعرف بشرح ابن قاسم على متن أبي شجاع)</strong></a>
-      <div class="muted">محمد بن قاسم الغزي (ت 918 هـ)
+      <div class="muted"><a href="tarajem/2.html">محمد بن قاسم الغزي</a> (ت 918 هـ)
         · 17 باب · 209 فصل</div>
     </div>
   
     <div class="card">
       <a href="book/3.html"><strong>المقدمة الحضرمية (مسائل التعليم)</strong></a>
-      <div class="muted">بافضل الحضرمي (ت 918 هـ)
+      <div class="muted"><a href="tarajem/3.html">بافضل الحضرمي</a> (ت 918 هـ)
         · 20 باب · 118 فصل</div>
     </div>
   
     <div class="card">
       <a href="book/6.html"><strong>تحرير تنقيح اللباب في فقه الإمام الشافعي</strong></a>
-      <div class="muted">زكريا الأنصاري (ت 926 هـ)
+      <div class="muted"><a href="tarajem/6.html">زكريا الأنصاري</a> (ت 926 هـ)
         · 16 باب · 179 فصل</div>
     </div>
   
     <div class="card">
       <a href="book/5.html"><strong>المنهاج القويم</strong></a>
-      <div class="muted">ابن حجر الهيتمي (ت 974 هـ)
+      <div class="muted"><a href="tarajem/5.html">ابن حجر الهيتمي</a> (ت 974 هـ)
         · 18 باب · 113 فصل</div>
     </div>
   
     <div class="card">
       <a href="book/1.html"><strong>شَرح المُقَدّمَة الحضرمية المُسمّى بُشرى الكريم بشَرح مَسَائل التَّعليم</strong></a>
-      <div class="muted">سعيد باعشن (ت 1270 هـ)
+      <div class="muted"><a href="tarajem/1.html">سعيد باعشن</a> (ت 1270 هـ)
         · 21 باب · 124 فصل</div>
     </div>
   
@@ -73,7 +83,7 @@
 <script src="assets/search.js"></script>
 </main>
   <footer class="wrap muted">
-    النصوص منقولة من <a href="https://shamela.ws" target="_blank" rel="noopener">المكتبة الشاملة</a>، وحقوق الطبعات لناشريها.
+    النصوص منقولة من <a href="https://shamela.ws" target="_blank" rel="noopener">المكتبة الشاملة</a> و<a href="https://ketabonline.com" target="_blank" rel="noopener">جامع الكتب الإسلامية</a>، وحقوق الطبعات لناشريها.
     · <a href="https://github.com/adsaadeddin/zawiyah-ulom" target="_blank" rel="noopener">الشيفرة المصدرية</a>
   </footer>
 </body>

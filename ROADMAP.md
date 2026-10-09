@@ -12,6 +12,9 @@ are in [DEVELOPER.md](DEVELOPER.md).
 | ✅ | Foundation | Shamela scraper with a page cache. Search that ignores tashkeel, ال and letter variants. Topic tags. Flask JSON API. Public demo site on GitHub Pages |
 | ✅ | Refactor, phase 1 | `src/` package, the `zawiyah` CLI, one Arabic normalization shared by Python and the browser, DEVELOPER.md |
 | ✅ | Study notes | A note on every section: searchable, marked in each table of contents, safe across rebuilds |
+| ✅ | قراءة مقارنة (study a matn with two commentaries) | Each matn paragraph with what each commentary says about it, side by side. Matn paragraphs are placed automatically in each commentary (tolerant of glosses and recension differences). Sets: متن أبي شجاع with فتح القريب (90% placed) and كفاية الأخيار (86%); المقدمة الحضرمية with بشرى الكريم (71%) and المنهاج القويم (98%) |
+| ✅ | Public site, part 2 | The live site also shows the tarajem (read-only) and قراءة مقارنة (matn + commentaries side by side, without notes). Notes stay private: the export attaches an empty notes database |
+| ✅ | Study view, part 2 | Notes inside the study view: on the matn and the commentaries, plus a narrow «ملاحظاتي» column with notes on the whole paragraph. A printable A4 lesson (commentaries in full, notes numbered, filter by type). Study sets managed from the app (add a third commentary column in one click) |
 | ✅ | Notes on a passage | Select a sentence, then write a note on it, typed فائدة / سؤال / إشكال / للتدريس with a highlight colour per type. Survives rebuilds, can be filtered by type on the notes page, and is searchable |
 | ✅ | Tarajem, part 1 | التراجم tab: add, edit and search scholars, teacher↔student links, authors linked from their books. Kept across rebuilds, and included in `zawiyah backup` |
 | ✅ | Library tab | Add a Shamela book from the app: preview, background download, quality report, then add or discard. Details below |

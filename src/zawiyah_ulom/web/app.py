@@ -24,11 +24,12 @@ from zawiyah_ulom.db import get_connection
 from zawiyah_ulom.notes import attach_notes, get_note, list_notes, note_keys, save_note, search_notes
 from zawiyah_ulom import notes
 from zawiyah_ulom.search import search
-from zawiyah_ulom import library, scraper, tarajem
+from zawiyah_ulom import library, scraper, study, tarajem
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # return Arabic as-is, not \uXXXX escapes
 app.json.sort_keys = False
+app.jinja_env.add_extension("jinja2.ext.do")  # {% do list.append(x) %} in study_print.html
 
 MAX_LIMIT = 100
 
@@ -198,7 +199,7 @@ def api_search():
 
 @app.errorhandler(404)
 def not_found(err):
-    if request.path.startswith(("/read/", "/notes", "/tarajem", "/library")):
+    if request.path.startswith(("/read/", "/notes", "/tarajem", "/library", "/study")):
         return render_template("message.html", message="الصفحة غير موجودة"), 404
     return jsonify({"error": err.description}), 404
 
@@ -231,7 +232,8 @@ def ui_book(book_id):
             s["has_note"] = s["source_key"] in with_notes
             s["ann_count"] = ann_counts.get(s["source_key"], 0)
         ch["note_count"] = sum(s["has_note"] or s["ann_count"] > 0 for s in ch["sections"])
-    return render_template("book.html", book=book)
+    is_matn = any(st["matn"]["id"] == book_id for st in study.study_sets(db()))
+    return render_template("book.html", book=book, is_matn=is_matn)
 
 
 @app.get("/read/section/<int:section_id>")
@@ -255,17 +257,35 @@ def ui_save_note(section_id):
     return redirect(url_for("ui_section", section_id=section_id, saved=1) + "#note")
 
 
+def _safe_next() -> str | None:
+    """A local page to return to after a form (the study view sends its own URL)."""
+    nxt = request.form.get("next") or ""
+    return nxt.split("#")[0] if nxt.startswith("/") and not nxt.startswith("//") else None
+
+
+def _with_param(url: str, **params) -> str:
+    from urllib.parse import urlencode, urlsplit, parse_qsl, urlunsplit
+    parts = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parts.query) if k not in params] +             [(k, v) for k, v in params.items() if v is not None]
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
 @app.post("/read/section/<int:section_id>/annotations")
 def ui_add_annotation(section_id):
     s = get_section(section_id)
     f = request.form
+    nxt = _safe_next()
     try:
         ann_id = notes.add_annotation(
             db(), s["source_key"], quote=f.get("quote", ""), body=f.get("body", ""),
             kind=f.get("kind", ""), prefix=f.get("prefix", ""), suffix=f.get("suffix", ""),
-            paragraph=f.get("paragraph", type=int))
+            paragraph=f.get("paragraph", type=int), scope=f.get("scope", "passage"))
     except notes.AnnotationError as e:
+        if nxt:
+            return redirect(_with_param(nxt, error=str(e)))
         return redirect(url_for("ui_section", section_id=section_id, error=str(e)))
+    if nxt:
+        return redirect(_with_param(nxt, ann=ann_id, error=None) + f"#ann-{ann_id}")
     return redirect(url_for("ui_section", section_id=section_id, ann=ann_id) + f"#ann-{ann_id}")
 
 
@@ -279,6 +299,9 @@ def _annotation_section(ann_id: int) -> tuple[dict, int | None]:
 
 
 def _back_to(section_id: int | None, ann_id: int | None = None, error: str | None = None):
+    nxt = _safe_next()
+    if nxt:
+        return redirect(_with_param(nxt, ann=ann_id, error=error) + (f"#ann-{ann_id}" if ann_id else ""))
     if section_id is None:
         return redirect(url_for("ui_notes", error=error))
     url = url_for("ui_section", section_id=section_id, ann=ann_id, error=error)
@@ -457,3 +480,72 @@ def ui_library_discard(key):
     except library.LibraryError as e:
         return redirect(url_for("ui_library", error=str(e)))
     return redirect(url_for("ui_library", msg="تم تجاهل الكتاب المنزَّل"))
+
+
+# ------------------------------------------------------------ Study (matn + shuruh)
+
+@app.get("/study")
+def ui_study_index():
+    return render_template("study_index.html", sets=study.study_sets(db()))
+
+
+@app.get("/study/<int:matn_id>")
+def ui_study(matn_id):
+    st, shuruh = _study_set(matn_id)
+    notes_flags = request.args.getlist("notes")
+    show_notes = "1" in notes_flags or not notes_flags   # on unless explicitly turned off
+    view = study.study_chapter(db(), matn_id, [b["id"] for b in shuruh], request.args.get("ch", type=int))
+    here = url_for("ui_study", matn_id=matn_id, ch=view["chapter"]["id"], s=[b["id"] for b in shuruh],
+                   notes=1 if show_notes else 0)
+    return render_template("study.html", st=st, shuruh=shuruh, view=view, chosen=[b["id"] for b in shuruh],
+                           show_notes=show_notes, kinds=notes.KINDS, here=here,
+                           open_ann=request.args.get("ann", type=int), error=request.args.get("error"))
+
+
+def _study_set(matn_id: int) -> tuple[dict, list[dict]]:
+    """The configured set for a matn and the commentaries chosen in ?s= (default: all)."""
+    sets = {s["matn"]["id"]: s for s in study.study_sets(db())}
+    if matn_id not in sets:
+        abort(404)
+    st = sets[matn_id]
+    chosen = [int(x) for x in request.args.getlist("s") if x.isdigit()]
+    return st, [b for b in st["shuruh"] if b["id"] in chosen] or st["shuruh"]
+
+
+@app.get("/study/<int:matn_id>/print")
+def ui_study_print(matn_id):
+    st, shuruh = _study_set(matn_id)
+    include_notes = request.args.get("notes", "1") == "1"
+    kinds_on = [k for k in request.args.getlist("k") if k in notes.KINDS] or list(notes.KINDS)
+    view = study.study_chapter(db(), matn_id, [b["id"] for b in shuruh], request.args.get("ch", type=int))
+    for row in view["rows"]:  # number this row's notes for footnote-style references
+        row["print_notes"] = [a for a in row["para_notes"] + row["passage_notes"]
+                              if include_notes and a["kind"] in kinds_on]
+        row["note_no"] = {a["id"]: i + 1 for i, a in enumerate(row["print_notes"])}
+    return render_template("study_print.html", st=st, shuruh=shuruh, view=view, kinds=notes.KINDS,
+                           include_notes=include_notes, kinds_on=kinds_on, chosen=[b["id"] for b in shuruh])
+
+
+@app.route("/study/sets", methods=["GET", "POST"])
+def ui_study_sets():
+    """Create study sets and add/remove commentaries (data/commentaries.json)."""
+    from zawiyah_ulom.align import load_pairs, save_pairs
+    books = {study.book_key(b["source_url"]): b for b in library.library_books(db()) if b["source_url"]}
+    if request.method == "POST":
+        pairs = load_pairs()
+        action, matn = request.form.get("action"), request.form.get("matn", "")
+        sharh = request.form.get("sharh", "")
+        if matn not in books or (action != "remove_set" and sharh not in books) or matn == sharh:
+            return redirect(url_for("ui_study_sets", error="اختر كتابين مختلفين من المكتبة"))
+        if action == "add":
+            pairs.setdefault(matn, [])
+            if sharh not in pairs[matn]:
+                pairs[matn].append(sharh)
+        elif action == "remove":
+            pairs[matn] = [k for k in pairs.get(matn, []) if k != sharh]
+        save_pairs(pairs)
+        return redirect(url_for("ui_study_sets", msg="تم الحفظ"))
+    sets = [{"matn_key": m, "matn": books.get(m), "shuruh": [(k, books.get(k)) for k in ks]}
+            for m, ks in load_pairs().items()]
+    return render_template("study_sets.html", sets=sets, books=books,
+                           msg=request.args.get("msg"), error=request.args.get("error"))

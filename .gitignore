@@ -9,3 +9,6 @@ data/notes.db
 data/notes.db-*
 data/backups/
 data/staging/
+
+# Design briefs for other projects (private)
+briefs/

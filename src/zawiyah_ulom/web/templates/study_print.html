@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ st.matn.short if st.matn.short else st.matn.title }} — {{ view.chapter.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Kufi+Arabic:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 16mm 14mm 18mm; }
+    :root { --k-faida: #c99a06; --k-question: #2f7fcf; --k-ishkal: #c8412e; --k-teaching: #2a9a68; }
+    body { margin: 0; font-family: Amiri, serif; font-size: 15.5pt; line-height: 1.85; color: #111; background: #fff; }
+    .wrap { max-width: 180mm; margin: 0 auto; padding: 8mm 0; }
+    .controls { font-family: "Noto Kufi Arabic", sans-serif; font-size: 12px; background: #f4f1ea; border-radius: 8px;
+                padding: 10px 14px; margin-bottom: 14px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+    .controls button { font: inherit; padding: 6px 16px; border-radius: 6px; border: 0; background: #1f6f5c; color: #fff; cursor: pointer; }
+    header.title { text-align: center; border-bottom: 2px solid #222; margin-bottom: 8mm; padding-bottom: 3mm; }
+    header.title h1 { font-size: 22pt; margin: 0; }
+    header.title .sub { font-family: "Noto Kufi Arabic", sans-serif; font-size: 9.5pt; color: #555; }
+    .row { margin: 0 0 7mm; }
+    .matn { font-weight: 700; font-size: 17pt; background: #f1efe8; border-right: 4px solid #222; padding: 2mm 4mm; margin-bottom: 2mm;
+            break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .matn .num { font-family: "Noto Kufi Arabic", sans-serif; font-size: 8.5pt; font-weight: 400; color: #666; margin-left: 2mm; }
+    .sharh { margin: 2mm 0 0; }
+    .sharh h3 { font-family: "Noto Kufi Arabic", sans-serif; font-size: 9.5pt; color: #1f6f5c; margin: 3mm 0 1mm; }
+    .sharh p { margin: 0 0 1.5mm; text-align: justify; }
+    .merged { font-family: "Noto Kufi Arabic", sans-serif; font-size: 9pt; color: #777; }
+    mark { background: none; color: inherit; border-bottom: 1.5px solid var(--k); }
+    .kind-faida { --k: var(--k-faida); } .kind-question { --k: var(--k-question); }
+    .kind-ishkal { --k: var(--k-ishkal); } .kind-teaching { --k: var(--k-teaching); }
+    sup { font-family: "Noto Kufi Arabic", sans-serif; font-size: 7pt; color: var(--k, #444); }
+    .notes { border-top: 1px dashed #999; margin-top: 2mm; padding-top: 1.5mm; font-size: 12.5pt; break-inside: avoid; }
+    .notes .n { display: flex; gap: 2mm; margin-bottom: 1mm; }
+    .notes .lbl { font-family: "Noto Kufi Arabic", sans-serif; font-size: 8pt; color: var(--k); white-space: nowrap; }
+    .notes .q { color: #555; }
+    .notes .body { white-space: pre-wrap; }
+    @media print { .controls { display: none; } .wrap { padding: 0; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <form class="controls" method="get">
+    <input type="hidden" name="ch" value="{{ view.chapter.id }}">
+    {% for b in shuruh %}<input type="hidden" name="s" value="{{ b.id }}">{% endfor %}
+    <label><input type="checkbox" name="notes" value="1" {% if include_notes %}checked{% endif %} onchange="this.form.submit()"> ملاحظاتي</label>
+    {% if include_notes %}
+      {% for k, label in kinds.items() %}
+        <label class="kind-{{ k }}"><input type="checkbox" name="k" value="{{ k }}" {% if k in kinds_on %}checked{% endif %} onchange="this.form.submit()"> {{ label }}</label>
+      {% endfor %}
+    {% endif %}
+    <button type="button" onclick="window.print()">طباعة / حفظ PDF</button>
+    <span>اختر «حفظ بصيغة PDF» في نافذة الطباعة لحفظ الدرس ملفًا.</span>
+  </form>
+
+  <header class="title">
+    <h1>{{ view.chapter.name }}</h1>
+    <div class="sub">{{ st.matn.title }} — مع {% for b in shuruh %}{{ b.short }}{% if b.author %} ({{ b.author }}){% endif %}{% if not loop.last %} و{% endif %}{% endfor %}</div>
+  </header>
+
+  {% macro print_text(segments, note_no, labelled) -%}
+    {%- for text, ids in segments -%}
+      {%- set shown = ids | select('in', note_no) | list -%}
+      {%- if shown -%}<mark class="kind-{{ view.ann_kind[shown[0]] }}">{{ text }}</mark>
+        {%- for i in shown if i not in labelled %}{% do labelled.append(i) %}<sup class="kind-{{ view.ann_kind[i] }}">{{ note_no[i] }}</sup>{% endfor -%}
+      {%- else -%}{{ text }}{%- endif -%}
+    {%- endfor -%}
+  {%- endmacro %}
+
+  {% for row in view.rows %}{% set labelled = [] %}
+  <section class="row">
+    <div class="matn"><span class="num">{{ row.number }}</span>{% for d in row.matn_display %}{{ print_text(d.segments, row.note_no, labelled) }}{% endfor %}
+      {%- for a in row.para_notes if a.id in row.note_no %}<sup class="kind-{{ a.kind }}">{{ row.note_no[a.id] }}</sup>{% endfor %}</div>
+    {% for col in row.cols %}{% set b = shuruh[loop.index0] %}
+      <div class="sharh">
+        <h3>{{ b.short }}{% if b.author %} — {{ b.author }}{% endif %}</h3>
+        {% if col.merged %}<div class="merged">مشروحة مع الفقرة السابقة</div>
+        {% else %}{% for part in col.parts %}{% for d in part.display %}<p>{{ print_text(d.segments, row.note_no, labelled) }}</p>{% endfor %}{% endfor %}{% endif %}
+      </div>
+    {% endfor %}
+    {% if row.print_notes %}
+      <div class="notes">
+        {% for a in row.print_notes %}
+          <div class="n kind-{{ a.kind }}"><span class="lbl">{{ loop.index }} · {{ kinds[a.kind] }}</span>
+            <span>{% if a.scope != 'paragraph' %}<span class="q">«{{ a.quote[:80] }}{% if a.quote|length > 80 %}…{% endif %}» — </span>{% endif %}<span class="body">{{ a.body }}</span></span></div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>
+</body>
+</html>

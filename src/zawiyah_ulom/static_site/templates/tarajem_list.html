@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}التراجم — زاوية العلوم{% endblock %}
+{% block content %}
+<h1>التراجم</h1>
+<p class="muted">{{ scholars|length }} ترجمة، مرتبة حسب سنة الوفاة.</p>
+{% for s in scholars %}
+  <div class="card scholar-row">
+    <div>
+      <a href="{{ s.id }}.html"><strong>{{ s.name }}</strong></a>
+      {% if s.nickname and s.nickname != s.name %}<span class="muted">«{{ s.nickname }}»</span>{% endif %}
+      {% if s.year_death_hijri %}<span class="muted">(ت {{ s.year_death_hijri }} هـ)</span>{% endif %}
+      {% if s.full_arabic_name and s.full_arabic_name != s.name %}<div class="muted">{{ s.full_arabic_name }}</div>{% endif %}
+    </div>
+    <div class="muted badges">
+      {% if s.book_count %}<span class="tag">مؤلف في المكتبة</span>{% endif %}
+      {% if s.teacher_count %}<span>شيوخ: {{ s.teacher_count }}</span>{% endif %}
+      {% if s.student_count %}<span>تلاميذ: {{ s.student_count }}</span>{% endif %}
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

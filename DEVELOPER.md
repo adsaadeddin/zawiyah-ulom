@@ -388,6 +388,67 @@ section and a ✎ button appears. The note gets a kind:
   (`AnnotationFTS`). The table of contents shows a ✎ count per section.
 - **Limitation.** A selection must stay within one paragraph.
 
+### 5.7b قراءة مقارنة (`align.py`, `study.py`)
+
+`/study` shows a matn paragraph by paragraph, with each commentary's explanation of
+that paragraph beside it. Sets are configured in `data/commentaries.json` (committed),
+as `{"<matn key>": ["<sharh key>", ...]}`. Keys are file keys: a Shamela id, or
+`ketabonline-<id>`.
+
+**Alignment (`align.align`).** A commentary quotes the matn, often splitting it with
+glosses («(والذي ينقض) أي يبطل (الوضوء…)»), and may follow a different recension
+(كفاية الأخيار: «خمسة أشياء» where the matn has «ستة»). Each matn paragraph is placed
+in two steps:
+1. **Candidates.** The paragraph's first 6 normalized words are seeded from the 2 rarest
+   in the commentary. A candidate needs at least 60% of those words in order, with at
+   most 8 commentary words between matches; missing words are skipped.
+2. **Global order.** A weighted longest-increasing-subsequence picks one candidate per
+   paragraph, so that positions follow the matn's order. A stray match far ahead
+   can't derail the rest.
+
+Measured with random samples, all 12 anchors were correct in each pair:
+
+| Matn | Commentary | Paragraphs placed |
+|---|---|---|
+| 11370 | 35120 | 90% |
+| 11370 | 6140 | 86% |
+| 6125 | 9973 | 98% |
+| 6125 | 26535 | 71% (it paraphrases more) |
+
+Unplaced paragraphs are mostly page-break fragments, the author's introduction, or
+paraphrased فصول. They show as «مشروحة مع الفقرة السابقة», and the previous block runs
+on to the next placed anchor, so no commentary text is skipped.
+
+**Notes in the study view.** The matn box and the commentary passages are annotatable,
+like the reading page. `notes.annotated_slice()` renders a slice of a section (a matn
+paragraph, or a commentary passage between two anchors) with its highlights, and puts
+each note's card where its highlight starts. The shared pieces are
+`templates/_ann_macros.html` and `static/annotate.js`, used by both pages. Note forms
+carry `next`, so saving returns to the study view.
+
+**Notes column (narrow, toggle «ملاحظاتي»).** For each row, the column shows:
+- notes on the **whole matn paragraph**: `Annotation.scope = 'paragraph'`, quote = the
+  paragraph's text, found again by `notes.paragraph_of()`, not highlighted. The reading
+  page shows them open under the paragraph.
+- a compact list of the row's passage notes (matn and commentaries). Clicking one opens
+  its card in the text.
+
+The `scope` column was added to existing `notes.db` files by `notes.NOTES_MIGRATIONS`.
+
+**Print (`/study/<id>/print`).** One كتاب on A4: each matn paragraph, the commentaries in
+full, and your notes numbered under each paragraph. Options: notes on or off, and which
+types (e.g. only للتدريس). Use the browser's print, or save as PDF.
+
+**Sets (`/study/sets`).** Add or remove commentaries in a set (each one is a column; a
+third works as is), or create a set from any two library books. This writes
+`data/commentaries.json`.
+
+**Display (`study.study_chapter`).** One matn chapter per page. Each row shows the matn
+paragraph and one column per commentary, with its text from the anchor up to the next
+anchor and links to the commentary sections, for writing notes there. Alignments are
+cached in memory per pair, and recomputed when either book's text changes (about 1–2
+seconds the first time).
+
 ### 5.8 Tarajem (`tarajem.py`)
 
 The **التراجم** tab (`/tarajem`) is where you enter scholar biographies and teacher→student
@@ -416,8 +477,10 @@ links, in the Flask UI only.
   refused for the author of a book in the library, whose page has no delete button.
 - **Book authors** (`Book.author_id`) appear automatically, and their name links to
   their profile from the home and book pages.
-- **Privacy.** Tarajem is in the git-ignored `fiqh.db`, and the static site doesn't
-  include it.
+- **Published, read-only.** Since 2026-10-09, `zawiyah export` publishes the tarajem
+  to the public site as `docs/tarajem/` (the list, plus one page per scholar), at Adnan's
+  request. Every biography written here becomes public at the next export and push.
+  Editing stays local.
 
 ### 5.9 Library tab (`library.py`)
 

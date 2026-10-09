@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}قراءة مقارنة{% endblock %}
+{% block content %}
+<div class="page-head"><h1>قراءة مقارنة</h1><a class="button" href="{{ url_for('ui_study_sets') }}">إدارة المجموعات</a></div>
+<p class="muted">اقرأ المتن فقرةً فقرة، وتحت كل فقرة ما قاله كل شارح في شرحها جنبًا إلى جنب.</p>
+
+{% for st in sets %}
+  <div class="card">
+    <a href="{{ url_for('ui_study', matn_id=st.matn.id) }}"><strong>{{ st.matn.title }}</strong></a>
+    <div class="muted">{{ st.matn.author }}</div>
+    <div class="muted">مع: {% for b in st.shuruh %}{{ b.title }}{% if b.author %} ({{ b.author }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+  </div>
+{% else %}
+  <p>لا توجد مجموعات بعد. تُضبط في الملف data/commentaries.json (المتن وشروحه).</p>
+{% endfor %}
+{% endblock %}

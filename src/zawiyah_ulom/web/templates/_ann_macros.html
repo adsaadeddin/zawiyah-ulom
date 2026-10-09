@@ -1,0 +1,63 @@
+{# Shared pieces for notes on a passage (reading page and study view).
+   Text that can be annotated is rendered as <p data-section="<section id>" data-p="<paragraph index>">,
+   and static/annotate.js does the rest: the ✎ button on selection, the new-note form,
+   and opening a note's card when its highlight is clicked. #}
+
+{# Highlighted text from notes.anchor_annotations / notes.annotated_slice segments. #}
+{% macro marked(segments, ann_kind) -%}
+  {%- for text, ids in segments -%}
+    {%- if ids -%}<mark class="ann kind-{{ ann_kind[ids[0]] }}{% if ids|length > 1 %} multi{% endif %}" data-ids="{{ ids|join(' ') }}" tabindex="0">{{ text }}</mark>
+    {%- else -%}{{ text }}{%- endif -%}
+  {%- endfor -%}
+{%- endmacro %}
+
+{# A note's card: kind, quoted passage, text, and edit/delete. `next` = where to return after saving. #}
+{% macro ann_card(a, kinds, next, open_ann=None, always_open=False) %}
+  <div class="ann-card kind-{{ a.kind }}" id="ann-{{ a.id }}" data-id="{{ a.id }}" {% if not always_open and open_ann != a.id %}hidden{% endif %}>
+    <div class="ann-head">
+      <span class="kind-badge kind-{{ a.kind }}">{{ kinds[a.kind] }}</span>
+      <span class="muted">{{ a.updated_at[:16] }}</span>
+      <button type="button" class="link ann-close" aria-label="إغلاق">×</button>
+    </div>
+    <blockquote class="ann-quote">{{ a.quote }}</blockquote>
+    <div class="note-body">{{ a.body }}</div>
+    <details>
+      <summary>تعديل</summary>
+      <form method="post" action="{{ url_for('ui_edit_annotation', ann_id=a.id) }}" class="ann-form">
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="kind-picker">{% for k, label in kinds.items() %}
+          <label class="kind-{{ k }}"><input type="radio" name="kind" value="{{ k }}" {% if k == a.kind %}checked{% endif %}> {{ label }}</label>{% endfor %}
+        </div>
+        <textarea name="body" rows="4" required>{{ a.body }}</textarea>
+        <div class="note-actions"><button type="submit">حفظ</button></div>
+      </form>
+      <form method="post" action="{{ url_for('ui_delete_annotation', ann_id=a.id) }}"
+            onsubmit="return confirm('حذف هذه الملاحظة؟');">
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="danger">حذف الملاحظة</button>
+      </form>
+    </details>
+  </div>
+{% endmacro %}
+
+{# The ✎ button shown next to a text selection, and the new-note form it opens.
+   The form's action and hidden fields are filled in by annotate.js. #}
+{% macro new_note_widgets(kinds, next) %}
+<button type="button" id="ann-add" class="ann-add" hidden>✎ ملاحظة</button>
+<form method="post" id="ann-new" class="ann-card ann-form" hidden
+      data-action="{{ url_for('ui_add_annotation', section_id=0) }}">
+  <input type="hidden" name="quote"><input type="hidden" name="prefix"><input type="hidden" name="suffix">
+  <input type="hidden" name="paragraph"><input type="hidden" name="next" value="{{ next }}">
+  <blockquote class="ann-quote" id="ann-new-quote"></blockquote>
+  <div class="kind-picker">{% for k, label in kinds.items() %}
+    <label class="kind-{{ k }}"><input type="radio" name="kind" value="{{ k }}" {% if loop.first %}checked{% endif %}> {{ label }}</label>{% endfor %}
+  </div>
+  <textarea name="body" rows="4" placeholder="ملاحظتك على هذا النص…" required></textarea>
+  <div class="note-actions">
+    <button type="submit">حفظ</button>
+    <button type="button" class="link" id="ann-cancel">إلغاء</button>
+    <span class="muted">Ctrl+Enter للحفظ</span>
+  </div>
+</form>
+<script src="{{ url_for('static', filename='annotate.js') }}"></script>
+{% endmacro %}

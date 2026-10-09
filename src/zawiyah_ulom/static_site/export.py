@@ -4,6 +4,11 @@
   docs/book/<id>.html      table of contents
   docs/section/<id>.html   reading view
   docs/data/search.json    normalized text index + normalization rules for assets/search.js
+  docs/tarajem/…           read-only tarajem: list + one page per scholar
+  docs/study/…             read-only قراءة مقارنة: per matn chapter, the commentaries side by side
+
+Personal notes are never exported: the study pages are built with an empty,
+in-memory notes database attached instead of data/notes.db.
 
 Search text is normalized here with arabic.normalize(). The rules themselves
 are exported too (arabic.rules_for_js()), and search.js applies them to the
@@ -29,7 +34,7 @@ env = Environment(loader=FileSystemLoader(SITE_ASSETS / "templates"),
 
 def load(conn) -> dict:
     books = [dict(r) for r in conn.execute("""
-        SELECT b.id, b.title, s.name AS author, s.year_death_hijri, p.name AS publisher,
+        SELECT b.id, b.title, s.id AS author_id, s.name AS author, s.year_death_hijri, p.name AS publisher,
                (SELECT url FROM URL WHERE entity_type = 'book' AND entity_id = b.id
                 ORDER BY is_primary DESC LIMIT 1) AS source_url
         FROM Book b LEFT JOIN Scholar s ON s.id = b.author_id
@@ -95,10 +100,43 @@ def export(data: dict) -> None:
     print(f"{len(data['books'])} books, {n_sections} sections -> {OUT} (search index {size:.1f} MB)")
 
 
+def export_tarajem(conn) -> int:
+    """docs/tarajem/index.html and docs/tarajem/<id>.html (read-only)."""
+    from zawiyah_ulom import tarajem
+    scholars = tarajem.list_scholars(conn)
+    write(OUT / "tarajem" / "index.html", env.get_template("tarajem_list.html").render(root="../", scholars=scholars))
+    for row in scholars:
+        s = tarajem.get_scholar(conn, row["id"])
+        write(OUT / "tarajem" / f"{s['id']}.html", env.get_template("tarajem.html").render(root="../", s=s))
+    return len(scholars)
+
+
+def export_study(conn) -> int:
+    """docs/study/index.html and docs/study/<matn id>/<chapter id>.html (read-only, no notes)."""
+    from zawiyah_ulom import notes, study
+    notes.attach_notes(conn, Path(":memory:"))  # an empty notes db: personal notes can't leak
+    sets = study.study_sets(conn)
+    pages = 0
+    for st in sets:
+        ids = [b["id"] for b in st["shuruh"]]
+        first = study.study_chapter(conn, st["matn"]["id"], ids, None)
+        st["first_chapter"] = first["chapter"]["id"]
+        for ch in first["chapters"]:
+            view = study.study_chapter(conn, st["matn"]["id"], ids, ch["id"])
+            write(OUT / "study" / str(st["matn"]["id"]) / f"{ch['id']}.html",
+                  env.get_template("study.html").render(root="../../", st=st, shuruh=st["shuruh"], view=view))
+            pages += 1
+    write(OUT / "study" / "index.html", env.get_template("study_index.html").render(root="../", sets=sets))
+    return pages
+
+
 def export_site() -> None:
-    """Export data/fiqh.db to docs/."""
+    """Export data/fiqh.db to docs/ (books, search, tarajem, study view)."""
     conn = get_connection()
     try:
         export(load(conn))
+        n_scholars = export_tarajem(conn)
+        n_study = export_study(conn)
+        print(f"  + {n_scholars} tarajem pages, {n_study} study pages")
     finally:
         conn.close()

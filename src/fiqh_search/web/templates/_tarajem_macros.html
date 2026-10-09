@@ -1,0 +1,12 @@
+{# "(ت 676 هـ / 1277 م)" from whichever years are known. #}
+{% macro death(s) -%}
+  {%- if s.year_death_hijri or s.year_death_gregorian -%}
+    (ت {% if s.year_death_hijri %}{{ s.year_death_hijri }} هـ{% endif %}{% if s.year_death_hijri and s.year_death_gregorian %} / {% endif %}{% if s.year_death_gregorian %}{{ s.year_death_gregorian }} م{% endif %})
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro scholar_link(s) -%}
+  <a href="{{ url_for('ui_tarjama', scholar_id=s.id) }}">{{ s.name }}</a>
+  {%- if s.nickname and s.nickname != s.name %} <span class="muted">«{{ s.nickname }}»</span>{% endif %}
+  <span class="muted">{{ death(s) }}</span>
+{%- endmacro %}

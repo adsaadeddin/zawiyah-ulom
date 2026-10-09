@@ -23,6 +23,7 @@ from flask import Flask, abort, g, jsonify, redirect, render_template, request, 
 from fiqh_search.db import get_connection
 from fiqh_search.notes import attach_notes, get_note, list_notes, note_keys, save_note, search_notes
 from fiqh_search.search import search
+from fiqh_search import tarajem
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # return Arabic as-is, not \uXXXX escapes
@@ -196,7 +197,7 @@ def api_search():
 
 @app.errorhandler(404)
 def not_found(err):
-    if request.path.startswith(("/read/", "/notes")):
+    if request.path.startswith(("/read/", "/notes", "/tarajem")):
         return render_template("message.html", message="الصفحة غير موجودة"), 404
     return jsonify({"error": err.description}), 404
 
@@ -253,3 +254,81 @@ def ui_notes():
     unlinked = [n for n in all_notes if n["section_id"] is None]
     return render_template("notes.html", by_book=by_book, unlinked=unlinked,
                            count=len(all_notes) - len(unlinked))
+
+
+# ---------------------------------------------------------------- Tarajem
+
+def _tarjama_form(scholar: dict | None, values: dict | None = None, errors: dict | None = None):
+    """Render the add/edit form. `values` re-fills it after a validation error."""
+    exclude = scholar["id"] if scholar else None
+    if values is None and scholar:  # editing: start from the stored record
+        values = {**scholar,
+                  "teacher_ids": [t["id"] for t in scholar["teachers"]],
+                  "student_ids": [s["id"] for s in scholar["students"]],
+                  "user_urls": [u["url"] for u in scholar["urls"] if u["source"] == "user"]}
+    return render_template("tarajem_form.html", scholar=scholar, values=values or {},
+                           errors=errors or {}, fields=tarajem.FIELDS,
+                           choices=tarajem.scholar_choices(db(), exclude_id=exclude))
+
+
+@app.get("/tarajem")
+def ui_tarajem():
+    query = request.args.get("q", "").strip()
+    return render_template("tarajem_list.html", scholars=tarajem.list_scholars(db(), query),
+                           total=db().execute("SELECT COUNT(*) FROM Scholar").fetchone()[0],
+                           query=query, message=request.args.get("msg"))
+
+
+@app.get("/tarajem/new")
+def ui_tarjama_new():
+    return _tarjama_form(None)
+
+
+@app.post("/tarajem/new")
+def ui_tarjama_create():
+    data, errors = tarajem.parse_form(request.form)
+    if errors:
+        return _tarjama_form(None, data, errors), 400
+    scholar_id = tarajem.save_scholar(db(), data)
+    return redirect(url_for("ui_tarjama", scholar_id=scholar_id, saved=1))
+
+
+@app.get("/tarajem/<int:scholar_id>")
+def ui_tarjama(scholar_id):
+    s = tarajem.get_scholar(db(), scholar_id)
+    if not s:
+        abort(404)
+    return render_template("tarajem_detail.html", s=s, saved=request.args.get("saved") == "1",
+                           error=request.args.get("error"))
+
+
+@app.get("/tarajem/<int:scholar_id>/edit")
+def ui_tarjama_edit(scholar_id):
+    s = tarajem.get_scholar(db(), scholar_id)
+    if not s:
+        abort(404)
+    return _tarjama_form(s)
+
+
+@app.post("/tarajem/<int:scholar_id>/edit")
+def ui_tarjama_update(scholar_id):
+    s = tarajem.get_scholar(db(), scholar_id)
+    if not s:
+        abort(404)
+    data, errors = tarajem.parse_form(request.form)
+    if errors:
+        return _tarjama_form(s, data, errors), 400
+    tarajem.save_scholar(db(), data, scholar_id)
+    return redirect(url_for("ui_tarjama", scholar_id=scholar_id, saved=1))
+
+
+@app.post("/tarajem/<int:scholar_id>/delete")
+def ui_tarjama_delete(scholar_id):
+    s = tarajem.get_scholar(db(), scholar_id)
+    if not s:
+        abort(404)
+    try:
+        tarajem.delete_scholar(db(), scholar_id)
+    except tarajem.TarjamaError as e:
+        return redirect(url_for("ui_tarjama", scholar_id=scholar_id, error=str(e)))
+    return redirect(url_for("ui_tarajem", msg=f"حُذفت ترجمة {s['name']}"))

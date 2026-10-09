@@ -65,12 +65,42 @@
     .note-actions button { font: inherit; padding: 8px 20px; border-radius: 8px; border: 0; background: var(--accent); color: var(--surface); cursor: pointer; }
     .saved { color: var(--accent); font-weight: 600; margin: 0 0 6px; }
     .note-mark { font-size: 13px; margin-inline-start: 6px; }
+    header nav { display: flex; gap: 18px; }
+    header nav a.active { font-weight: 600; text-decoration: underline; text-underline-offset: 6px; }
+    .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+    .button { display: inline-block; padding: 7px 16px; border-radius: 8px; background: var(--accent); color: var(--surface); font-size: 14px; }
+    .button:hover { text-decoration: none; opacity: .9; }
+    .error { color: #b3261e; background: color-mix(in srgb, #b3261e 10%, transparent); border-radius: 8px; padding: 8px 12px; }
+    .error ul { margin: 4px 0 0; }
+    .scholar-row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .badges { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 8px 0 16px; }
+    dl.facts dt { color: var(--muted); font-size: 13px; }
+    dl.facts dd { margin: 0; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+    .two-col h2, section.card h2 { margin-top: 0; }
+    .tarjama-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+    .tarjama-form .wide { grid-column: 1 / -1; }
+    @media (max-width: 640px) { .tarjama-form { grid-template-columns: 1fr; } }
+    .tarjama-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+    .tarjama-form input, .tarjama-form textarea, .tarjama-form select {
+      font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    }
+    .tarjama-form textarea[name="bio"] { font-family: Amiri, serif; font-size: 19px; line-height: 1.8; }
+    .tarjama-form .invalid input, .tarjama-form .invalid textarea { border-color: #b3261e; }
+    .tarjama-form .note-actions button { font: inherit; padding: 8px 24px; border-radius: 8px; border: 0; background: var(--accent); color: var(--surface); cursor: pointer; }
+    .danger-zone { margin-top: 32px; }
+    .danger { font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 8px; border: 1px solid #b3261e; background: transparent; color: #b3261e; cursor: pointer; }
   </style>
 </head>
 <body>
   <header><div class="wrap">
     <a class="brand" href="{{ url_for('ui_home') }}">محرك البحث الفقهي</a>
-    <nav><a href="{{ url_for('ui_notes') }}">✎ ملاحظاتي</a></nav>
+    <nav>
+      <a href="{{ url_for('ui_tarajem') }}" {% if request.path.startswith('/tarajem') %}class="active"{% endif %}>التراجم</a>
+      <a href="{{ url_for('ui_notes') }}" {% if request.path.startswith('/notes') %}class="active"{% endif %}>✎ ملاحظاتي</a>
+    </nav>
   </div></header>
   <main class="wrap">{% block content %}{% endblock %}</main>
 </body>

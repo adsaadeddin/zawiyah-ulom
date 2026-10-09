@@ -119,10 +119,16 @@ def backup_notes(path: Path = NOTES_PATH, backup_dir: Path = BACKUP_DIR) -> Path
     """Copy notes.db to data/backups/notes-<timestamp>.db with SQLite's online
     backup API (safe while the app is running). Returns the backup path, or
     None if there are no notes yet."""
+    return backup_sqlite(path, backup_dir, "notes")
+
+
+def backup_sqlite(path: Path, backup_dir: Path, prefix: str) -> Path | None:
+    """Copy a SQLite file to <backup_dir>/<prefix>-<timestamp>.db with the
+    online backup API (safe while the app is running). None if it doesn't exist."""
     if not path.exists():
         return None
     backup_dir.mkdir(parents=True, exist_ok=True)
-    target = backup_dir / f"notes-{datetime.now():%Y%m%d-%H%M%S}.db"
+    target = backup_dir / f"{prefix}-{datetime.now():%Y%m%d-%H%M%S}.db"
     src, dst = sqlite3.connect(path), sqlite3.connect(target)
     try:
         src.backup(dst)

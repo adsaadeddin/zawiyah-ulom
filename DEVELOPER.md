@@ -26,7 +26,7 @@ For a project overview, see [README.md](README.md).
                        data/books/<id>.json   (committed — the source of truth for the corpus)
                               │ load (+ tag)
                               ▼
-                       data/fiqh.db           (SQLite + FTS5, git-ignored, rebuildable)
+                       data/fiqh.db           (SQLite + FTS5, git-ignored; book tables rebuildable, tarajem kept)
                          │            │
                  serve   │            │ export
                          ▼            ▼
@@ -89,7 +89,7 @@ Interpreter*). Otherwise the editor flags the imports as missing.
 | Command | What it does |
 |---|---|
 | `fiqh scrape [ID ...]` | Scrape books (default: `config.BOOK_IDS`) into `data/books/<id>.json` |
-| `fiqh load [--fresh] [FILE ...]` | Load book JSON into SQLite, then retag. `--fresh` deletes the DB first |
+| `fiqh load [--fresh] [FILE ...]` | Load book JSON into SQLite, then retag. `--fresh` empties the book tables first (scholars are kept) |
 | `fiqh tag` | Re-run tag rules on every chapter and print the result |
 | `fiqh export` | Generate the static site in `docs/` |
 | `fiqh build` | `load --fresh` followed by `export`. Use this after any data change |
@@ -219,6 +219,16 @@ regex built with `arabic.fuzzy_pattern("باب")`, then drop false positives suc
 - **IDs and URLs.** SQLite assigns new IDs on every reload, and the static site's URLs
   (`section/<id>.html`) come from these IDs. Use `fiqh load --fresh` (or `fiqh build`) so
   that IDs start at 1 and stay stable for the same set of books.
+- **What `--fresh` keeps.** It empties only the book tables (`loader.CORPUS_TABLES`:
+  Book, Chapter, Section, Tag, ChapterTag, plus SectionFTS and the book URLs). Because
+  they are empty, their IDs restart at 1. `Scholar`, `TeacherStudent`, `Publisher` and
+  scholar links are **kept**, because they hold the tarajem you enter by hand. So
+  `fiqh.db` is no longer disposable. Back it up with `fiqh backup`, and don't delete it
+  to "start clean".
+- **Book authors** are matched to existing scholars by Shamela author URL first, then by
+  name. Renaming an author on the tarajem page therefore doesn't create a duplicate on
+  the next rebuild. Their stored fields are never overwritten by a load (except
+  `nickname`, when the book JSON provides one).
 
 Schema: `Book`, `Scholar`, `Publisher`, `Chapter`, `Section`, `Tag`, `ChapterTag`,
 `TeacherStudent` and `URL`, plus `SectionFTS`, an FTS5 table holding the **normalized**
@@ -298,7 +308,7 @@ at the bottom of each section page, and Ctrl+Enter saves. `/notes` lists every n
 reading order. Home-page search shows matching notes first, under «في ملاحظاتي».
 
 - **Storage.** Notes live in `data/notes.db`, separate from `fiqh.db`, because
-  `fiqh build` deletes `fiqh.db`. The web app attaches it to every connection as schema
+  `fiqh build` empties and reloads the book tables there, and section ids can change. The web app attaches it to every connection as schema
   `notes` (`attach_notes`).
 - **Linking.** A note is linked by `Section.source_key` = `"<shamela_id>:<page>:<title>"`
   (`loader.section_keys`), never by `Section.id`. Keys depend only on the book's TOC, so
@@ -311,13 +321,44 @@ reading order. Home-page search shows matching notes first, under «في ملا�
 - **Privacy.** `notes.db` and `data/backups/` are git-ignored, and `fiqh export` never
   reads notes, so they can't reach the public repo or the static site. The JSON API
   doesn't expose them either.
-- **Backups.** `fiqh backup-notes` writes `data/backups/notes-<timestamp>.db`, and it is
+- **Backups.** `fiqh backup` writes `data/backups/notes-<timestamp>.db` (and `fiqh-<timestamp>.db`, for tarajem), and it is
   safe while the app runs. Copy that folder somewhere outside this machine regularly
   (cloud drive or USB), because your notes exist nowhere else.
 - **Local only.** The UI has no login. Run it only on `127.0.0.1`, which is the
   default, and never expose it to a network as it is.
 
-### 5.8 Static site and deployment (`static_site/`)
+### 5.8 Tarajem (`tarajem.py`)
+
+The **التراجم** tab (`/tarajem`) is where you enter scholar biographies and teacher→student
+links, in the Flask UI only.
+
+| Page | What it does |
+|---|---|
+| `/tarajem` | Every scholar, ordered by death year (طبقات order). Search covers name, nickname and full name, ignoring tashkeel and ال |
+| `/tarajem/new` | Add a scholar |
+| `/tarajem/<id>` | Profile: names, dates, country, biography, teachers, students, books in the library, links |
+| `/tarajem/<id>/edit` | Edit a scholar, including their teachers, students and links |
+
+- **Storage.** Data goes in `Scholar`, `TeacherStudent` and `URL` (`entity_type='scholar_bio'`)
+  in `fiqh.db`. A rebuild keeps them (§5.3). Saving a profile updates the scholar, their
+  teacher and student links, and their links (`source='user'`) in one transaction.
+  Shamela author links (`source='shamela'`) are read-only, because the loader uses them to
+  find a book's author.
+- **Validation (`parse_form`).**
+  - The name is required.
+  - Years accept Arabic digits; hijri must be 1–1500 and gregorian 500–2100, and death
+    can't come before birth.
+  - Links must start with `http`.
+  - A scholar can't be their own teacher (also a `CHECK` constraint).
+  - On an error, the form comes back with your input kept.
+- **Deleting** removes the scholar, their teacher/student links and their URLs. It is
+  refused for the author of a book in the library, whose page has no delete button.
+- **Book authors** (`Book.author_id`) appear automatically, and their name links to
+  their profile from the home and book pages.
+- **Privacy.** Tarajem is in the git-ignored `fiqh.db`, and the static site doesn't
+  include it.
+
+### 5.9 Static site and deployment (`static_site/`)
 
 `fiqh export` writes `docs/`:
 

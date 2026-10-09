@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_tarajem_macros.html" import death %}
+{% block title %}{% if scholar %}تعديل: {{ scholar.name }}{% else %}ترجمة جديدة{% endif %}{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('ui_tarajem') }}">التراجم</a>
+  {% if scholar %} › <a href="{{ url_for('ui_tarjama', scholar_id=scholar.id) }}">{{ scholar.name }}</a>{% endif %}</div>
+<h1>{% if scholar %}تعديل الترجمة{% else %}ترجمة جديدة{% endif %}</h1>
+
+{% if errors %}<div class="error">يرجى تصحيح ما يلي:<ul>{% for e in errors.values() %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+
+<form method="post" class="tarjama-form" id="tarjama-form">
+  {% for col, label, kind in fields %}
+    <label class="{{ 'wide' if kind == 'textarea' or col in ('name', 'full_arabic_name') else '' }}{{ ' invalid' if col in errors else '' }}">
+      <span>{{ label }}{% if col == 'name' %} *{% endif %}</span>
+      {% if kind == 'textarea' %}
+        <textarea name="{{ col }}" rows="10" placeholder="نسبه، مولده، طلبه للعلم، شيوخه، مصنفاته، ثناء العلماء عليه، وفاته…">{{ values.get(col) or '' }}</textarea>
+      {% elif kind == 'year' %}
+        <input type="text" inputmode="numeric" name="{{ col }}" value="{{ values.get(col) if values.get(col) is not none else '' }}">
+      {% else %}
+        <input type="text" name="{{ col }}" value="{{ values.get(col) or '' }}" {% if col == 'name' %}required autofocus{% endif %}>
+      {% endif %}
+    </label>
+  {% endfor %}
+
+  {% for key, label in (('teachers', 'شيوخه'), ('students', 'تلاميذه')) %}
+    {% set selected = values.get(key[:-1] + '_ids') or [] %}
+    <label>
+      <span>{{ label }}</span>
+      <select name="{{ key }}" multiple size="8">
+        {% for c in choices %}<option value="{{ c.id }}" {% if c.id in selected %}selected{% endif %}>{{ c.name }}{% if c.nickname and c.nickname != c.name %} «{{ c.nickname }}»{% endif %} {{ death(c) }}</option>{% endfor %}
+      </select>
+      <small class="muted">Ctrl+نقرة لاختيار أكثر من واحد. إن لم يكن الشيخ موجودًا فأضف ترجمته أولًا.</small>
+    </label>
+  {% endfor %}
+
+  <label class="wide{{ ' invalid' if 'urls' in errors else '' }}">
+    <span>روابط (رابط في كل سطر)</span>
+    <textarea name="urls" rows="3" dir="ltr" placeholder="https://…">{{ (values.get('user_urls') or [])|join('\n') }}</textarea>
+  </label>
+
+  <div class="note-actions wide">
+    <button type="submit">حفظ</button>
+    <a href="{{ url_for('ui_tarjama', scholar_id=scholar.id) if scholar else url_for('ui_tarajem') }}">إلغاء</a>
+    <span class="muted">Ctrl+Enter للحفظ</span>
+  </div>
+</form>
+<script>
+  document.getElementById("tarjama-form").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) e.currentTarget.requestSubmit();
+  });
+</script>
+{% endblock %}

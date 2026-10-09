@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_tarajem_macros.html" import death %}
+{% block title %}التراجم{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>التراجم</h1>
+  <a class="button" href="{{ url_for('ui_tarjama_new') }}">+ إضافة ترجمة</a>
+</div>
+{% if message %}<p class="saved">✓ {{ message }}</p>{% endif %}
+
+<form class="search" method="get" action="{{ url_for('ui_tarajem') }}">
+  <input type="search" name="q" value="{{ query }}" placeholder="ابحث بالاسم أو اللقب… مثال: النووي">
+  <button type="submit">بحث</button>
+</form>
+
+<p class="muted">
+  {% if query %}{{ scholars|length }} من {{ total }} · <a href="{{ url_for('ui_tarajem') }}">عرض الكل</a>
+  {% else %}{{ total }} ترجمة، مرتبة حسب سنة الوفاة{% endif %}
+</p>
+
+{% for s in scholars %}
+  <div class="card scholar-row">
+    <div>
+      <a href="{{ url_for('ui_tarjama', scholar_id=s.id) }}"><strong>{{ s.name }}</strong></a>
+      {% if s.nickname and s.nickname != s.name %}<span class="muted">«{{ s.nickname }}»</span>{% endif %}
+      <span class="muted">{{ death(s) }}</span>
+      {% if s.full_arabic_name and s.full_arabic_name != s.name %}<div class="muted">{{ s.full_arabic_name }}</div>{% endif %}
+    </div>
+    <div class="muted badges">
+      {% if s.book_count %}<span class="tag">مؤلف في المكتبة</span>{% endif %}
+      {% if s.teacher_count %}<span>شيوخ: {{ s.teacher_count }}</span>{% endif %}
+      {% if s.student_count %}<span>تلاميذ: {{ s.student_count }}</span>{% endif %}
+      {% if not s.has_bio %}<span>بلا ترجمة بعد</span>{% endif %}
+    </div>
+  </div>
+{% else %}
+  <p>{% if query %}لا نتائج.{% else %}لا توجد تراجم بعد.{% endif %}
+     <a href="{{ url_for('ui_tarjama_new') }}">أضف ترجمة</a></p>
+{% endfor %}
+{% endblock %}

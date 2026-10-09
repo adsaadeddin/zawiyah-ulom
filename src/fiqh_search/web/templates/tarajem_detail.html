@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_tarajem_macros.html" import death, scholar_link %}
+{% block title %}{{ s.name }} — التراجم{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('ui_tarajem') }}">التراجم</a></div>
+<div class="page-head">
+  <h1>{{ s.name }}</h1>
+  <a class="button" href="{{ url_for('ui_tarjama_edit', scholar_id=s.id) }}">تعديل</a>
+</div>
+{% if saved %}<p class="saved">✓ تم الحفظ</p>{% endif %}
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<dl class="facts">
+  {% if s.nickname %}<dt>اللقب أو الكنية</dt><dd>{{ s.nickname }}</dd>{% endif %}
+  {% if s.full_arabic_name %}<dt>الاسم الكامل</dt><dd>{{ s.full_arabic_name }}</dd>{% endif %}
+  {% if s.year_birth_hijri or s.year_birth_gregorian %}
+    <dt>الولادة</dt><dd>{% if s.year_birth_hijri %}{{ s.year_birth_hijri }} هـ{% endif %}{% if s.year_birth_hijri and s.year_birth_gregorian %} / {% endif %}{% if s.year_birth_gregorian %}{{ s.year_birth_gregorian }} م{% endif %}</dd>
+  {% endif %}
+  {% if s.year_death_hijri or s.year_death_gregorian %}<dt>الوفاة</dt><dd>{{ death(s)[1:-1] }}</dd>{% endif %}
+  {% if s.country %}<dt>البلد</dt><dd>{{ s.country }}</dd>{% endif %}
+</dl>
+
+<section class="card">
+  <h2>الترجمة</h2>
+  {% if s.bio %}<div class="note-body">{{ s.bio }}</div>
+  {% else %}<p class="muted">لم تُكتب الترجمة بعد. <a href="{{ url_for('ui_tarjama_edit', scholar_id=s.id) }}">اكتبها الآن</a></p>{% endif %}
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <h2>شيوخه ({{ s.teachers|length }})</h2>
+    {% for t in s.teachers %}<div>{{ scholar_link(t) }}</div>{% else %}<p class="muted">لم يُضف شيوخ.</p>{% endfor %}
+  </section>
+  <section class="card">
+    <h2>تلاميذه ({{ s.students|length }})</h2>
+    {% for t in s.students %}<div>{{ scholar_link(t) }}</div>{% else %}<p class="muted">لم يُضف تلاميذ.</p>{% endfor %}
+  </section>
+</div>
+
+{% if s.books %}
+<section class="card">
+  <h2>كتبه في المكتبة</h2>
+  {% for b in s.books %}<div><a href="{{ url_for('ui_book', book_id=b.id) }}">{{ b.title }}</a></div>{% endfor %}
+</section>
+{% endif %}
+
+{% if s.urls %}
+<section class="card">
+  <h2>روابط</h2>
+  {% for u in s.urls %}<div><a href="{{ u.url }}" target="_blank" rel="noopener">{{ u.url }}</a>
+    {% if u.source == 'shamela' %}<span class="muted">· المكتبة الشاملة</span>{% endif %}</div>{% endfor %}
+</section>
+{% endif %}
+
+{% if not s.books %}
+<form method="post" action="{{ url_for('ui_tarjama_delete', scholar_id=s.id) }}" class="danger-zone"
+      onsubmit="return confirm('حذف ترجمة {{ s.name }} وكل روابطها بالشيوخ والتلاميذ؟ لا يمكن التراجع.');">
+  <button type="submit" class="danger">حذف الترجمة</button>
+</form>
+{% endif %}
+{% endblock %}

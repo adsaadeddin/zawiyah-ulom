@@ -2,8 +2,10 @@
 
 Re-running is safe: a book already in the DB (matched by its Shamela URL)
 is deleted and reloaded, so chapters/sections are never duplicated.
-Use fresh=True (CLI: --fresh) to rebuild from an empty DB so that IDs —
-and therefore static-site URLs — are stable.
+Use fresh=True (CLI: --fresh) to empty the book tables first, so that IDs,
+and therefore static-site URLs, are stable. Scholars (the tarajem you enter
+on the /tarajem page) live in the same database and are never deleted by a
+load.
 
 CLI:  fiqh load [--fresh] [path/to/book.json ...]
 """
@@ -12,7 +14,7 @@ import sqlite3
 from pathlib import Path
 
 from fiqh_search.arabic import normalize
-from fiqh_search.config import BOOKS_DIR, DB_PATH
+from fiqh_search.config import BOOKS_DIR
 from fiqh_search.db import get_connection, init_db
 from fiqh_search.tags import tag_chapters
 
@@ -30,8 +32,20 @@ def _nickname(author: dict) -> str | None:
 
 
 def get_or_create_scholar(conn: sqlite3.Connection, author: dict) -> int:
+    """Find the book's author in Scholar, or create it.
+
+    Matched by Shamela author URL first, then by name, so a scholar whose
+    name you edited on the tarajem page is still found. An existing scholar's
+    fields are never overwritten (they may hold your edits), except nickname,
+    when the JSON provides one."""
     nickname = _nickname(author)
-    row = conn.execute("SELECT id FROM Scholar WHERE name = ?", (author["name"],)).fetchone()
+    row = None
+    if author.get("url"):
+        row = conn.execute(
+            "SELECT entity_id AS id FROM URL WHERE entity_type = 'scholar_bio' AND url = ?",
+            (author["url"],),
+        ).fetchone()
+    row = row or conn.execute("SELECT id FROM Scholar WHERE name = ?", (author["name"],)).fetchone()
     if row:
         scholar_id = row["id"]
         if nickname:  # JSON is the source of truth, but never erase with a blank
@@ -124,14 +138,32 @@ def load_book(conn: sqlite3.Connection, data: dict) -> int:
     return book_id
 
 
+# Tables rebuilt from data/books/*.json. Everything else in fiqh.db (Scholar,
+# TeacherStudent, Publisher, scholar_bio URLs) is curated data that a rebuild keeps.
+CORPUS_TABLES = ["ChapterTag", "Tag", "Section", "Chapter", "Book"]
+
+
+def reset_corpus(conn: sqlite3.Connection) -> None:
+    """Empty the book tables, keeping scholars (tarajem) and their links.
+
+    The tables have INTEGER PRIMARY KEYs without AUTOINCREMENT, so once empty
+    their ids restart at 1: a fresh load gives the same ids, and the same
+    static-site URLs, as a brand-new database."""
+    for table in CORPUS_TABLES:
+        conn.execute(f"DELETE FROM {table}")
+    conn.execute("DELETE FROM SectionFTS")
+    conn.execute("DELETE FROM URL WHERE entity_type = 'book'")
+
+
 def load_books(paths: list[Path] | None = None, fresh: bool = False) -> None:
-    """Load book JSON files (default: every file in data/books/), then retag."""
+    """Load book JSON files (default: every file in data/books/), then retag.
+    fresh=True first empties the book tables (reset_corpus). Scholars are kept."""
     paths = paths or sorted(BOOKS_DIR.glob("*.json"))
-    if fresh:
-        DB_PATH.unlink(missing_ok=True)
     conn = get_connection()
     init_db(conn)
     with conn:  # one transaction for the whole load
+        if fresh:
+            reset_corpus(conn)
         for path in paths:
             load_book(conn, json.loads(path.read_text(encoding="utf-8")))
         print(f"  tagged: {tag_chapters(conn)} chapter-tag links")

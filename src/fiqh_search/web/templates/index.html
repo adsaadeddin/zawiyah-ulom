@@ -48,7 +48,7 @@
   {% for b in books %}
     <div class="card">
       <a href="{{ url_for('ui_book', book_id=b.id) }}"><strong>{{ b.title }}</strong></a>
-      <div class="muted">{{ b.author }}{% if b.year_death_hijri %} (ت {{ b.year_death_hijri }} هـ){% endif %} · {{ b.chapter_count }} باب</div>
+      <div class="muted">{% if b.author_id %}<a href="{{ url_for('ui_tarjama', scholar_id=b.author_id) }}">{{ b.author }}</a>{% else %}{{ b.author }}{% endif %}{% if b.year_death_hijri %} (ت {{ b.year_death_hijri }} هـ){% endif %} · {{ b.chapter_count }} باب</div>
     </div>
   {% endfor %}
 {% endif %}

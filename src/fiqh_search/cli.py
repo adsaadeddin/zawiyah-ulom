@@ -6,7 +6,7 @@
   fiqh export                 data/fiqh.db -> docs/ (static site)
   fiqh build                  load --fresh + export, from already-scraped JSON
   fiqh search QUERY [--tag T] FTS5 search from the terminal
-  fiqh backup-notes           copy data/notes.db (personal notes) to data/backups/
+  fiqh backup                 copy notes.db and fiqh.db (notes + tarajem) to data/backups/
   fiqh serve [--port N]       Flask API + UI on http://127.0.0.1:5000
 """
 import argparse
@@ -63,10 +63,15 @@ def cmd_search(args: argparse.Namespace) -> None:
     print(f"{len(results)} result(s)")
 
 
-def cmd_backup_notes(args: argparse.Namespace) -> None:
-    from fiqh_search.notes import backup_notes
-    target = backup_notes()
-    print(f"Notes backed up to {target}" if target else "No notes yet (data/notes.db doesn't exist).")
+def cmd_backup(args: argparse.Namespace) -> None:
+    """Back up everything you entered by hand: notes (notes.db) and tarajem
+    (Scholar, TeacherStudent, links — stored in fiqh.db)."""
+    from fiqh_search.config import BACKUP_DIR, DB_PATH, NOTES_PATH
+    from fiqh_search.notes import backup_sqlite
+    for path, prefix, what in ((NOTES_PATH, "notes", "notes"), (DB_PATH, "fiqh", "tarajem + library")):
+        target = backup_sqlite(path, BACKUP_DIR, prefix)
+        print(f"{what}: {target}" if target else f"{what}: nothing to back up ({path.name} doesn't exist)")
+    print(f"Copy {BACKUP_DIR} to another drive or cloud storage regularly.")
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
@@ -90,7 +95,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("tag", help="re-run chapter tag rules").set_defaults(func=cmd_tag)
     sub.add_parser("export", help="export the static site to docs/").set_defaults(func=cmd_export)
     sub.add_parser("build", help="load --fresh, then export").set_defaults(func=cmd_build)
-    sub.add_parser("backup-notes", help="snapshot data/notes.db into data/backups/").set_defaults(func=cmd_backup_notes)
+    for name in ("backup", "backup-notes"):  # backup-notes: earlier name, kept as an alias
+        sub.add_parser(name, help="snapshot notes.db and fiqh.db (tarajem) into data/backups/"
+                       ).set_defaults(func=cmd_backup)
 
     p = sub.add_parser("search", help="search from the terminal")
     p.add_argument("query", nargs="+")

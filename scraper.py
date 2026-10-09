@@ -171,11 +171,24 @@ def title_pattern(title: str) -> re.Pattern:
     return re.compile(r"[^ء-ي]+".join(w + _MARKS for w in word_res))
 
 
+HEADING_WORDS = ("فصل", "باب", "كتاب", "فرع", "تنبيه", "خاتمة", "مقدمة")
+
+
 def find_title(text: str, title: str, start: int) -> int:
     if not re.search(r"[ء-ي]", title):
         return text.find(title, start)
     m = title_pattern(title).search(text, start)
-    return m.start() if m else -1
+    if m:
+        return m.start()
+    # Fallback: some books (e.g. بشرى الكريم) head a section with the matn,
+    # "(فصل: يكره) ..." rather than the TOC title "فصل: في الماء المكروه".
+    # Accept a paragraph that opens with "(" + the title's first heading word.
+    first = title.split(":")[0].split()[0] if title.split() else ""
+    if first in HEADING_WORDS:
+        m = re.compile(r"(?m)^\(\s*" + title_pattern(first).pattern).search(text, start)
+        if m:
+            return m.start()
+    return -1
 
 
 def fill_content(book_id: int, chapters: list[dict], final_page: int) -> dict:
@@ -196,8 +209,8 @@ def fill_content(book_id: int, chapters: list[dict], final_page: int) -> dict:
     for s in sections:
         search_from = prev_off + 1 if s["page"] == prev_page else 0
         off = find_title(text(s["page"]), s["title"], search_from)
-        if off >= 0:  # split before a "[• title]" heading marker, not inside it
-            marker = re.search(r"\[\s*•?\s*$", text(s["page"])[:off])
+        if off >= 0:  # split before a "[• title]" or "(title" opener, not inside it
+            marker = re.search(r"[\[(•][\[(•\s]*$", text(s["page"])[:off])
             off = marker.start() if marker else off
         s["located"] = off >= 0
         found += s["located"]
@@ -225,8 +238,14 @@ def fill_content(book_id: int, chapters: list[dict], final_page: int) -> dict:
             if end_off != 0:
                 parts.append(text(end_page)[:end_off])
         content = "\n".join(p for p in parts if p).strip()
-        # The title is stored separately; drop Shamela's "[• title]" heading.
-        s["content"] = re.sub(rf"^\[\s*•?\s*{re.escape(s['title'])}\s*\]\s*", "", content)
+        # The title is stored separately: drop a leading line that is only the
+        # heading (e.g. "[• السواك]", "• السَلَم"), and the "* * *" separator
+        # that precedes the next section's heading.
+        if re.search(r"[ء-ي]", s["title"]):
+            heading = re.match(r"[\[(•\s]*" + title_pattern(s["title"]).pattern + r"[\])\s]*?(?:\n|$)", content)
+            if heading:
+                content = content[heading.end():]
+        s["content"] = re.sub(r"\s*\*\s*\*\s*\*\s*$", "", content).strip()
         s["end_page"] = end_page
 
     return {"sections": len(sections), "located": found, "pages": len(texts)}

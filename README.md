@@ -76,7 +76,10 @@ Re-run the export and commit `docs/` after any data change.
 ## Known limitations
 
 - Matching is whole-word, after normalization: «فرائض» does not find «فروض».
-- When a section's title can't be found on its starting page, that page is
-  included in both neighbouring sections. Titles are matched ignoring tashkeel,
-  and all of them are found in books 35120 and 6140.
+- Section boundaries are found by locating each title in its page text, ignoring
+  tashkeel. If that fails, the scraper takes a paragraph that opens with "(فصل…" /
+  "(باب…". Located: 204/204 (35120), 145/145 (6140), 118/124 (26535). For the other
+  6, the boundary page is included in both neighbouring sections.
+- Book and section IDs, and so the static page URLs, are assigned on load. To keep
+  them stable, rebuild with a fresh `data/fiqh.db` and the same book set.
 - Search snippets show normalized text (no tashkeel). The reading view shows the original.

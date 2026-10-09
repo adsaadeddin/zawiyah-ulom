@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ book.title }}{% endblock %}
+{% block content %}
+<h1>{{ book.title }}</h1>
+<div class="muted">
+  {{ book.author }}{% if book.year_death_hijri %} (ت {{ book.year_death_hijri }} هـ){% endif %}
+  {% if book.publisher %} · {{ book.publisher }}{% endif %}
+  {% if book.source_url %} · <a href="{{ book.source_url }}" target="_blank" rel="noopener">المصدر: المكتبة الشاملة</a>{% endif %}
+</div>
+
+<h2>فهرس الموضوعات</h2>
+{% for ch in book.chapters %}
+  <details class="card" id="ch{{ ch.id }}">
+    <summary>{{ ch.name }} <span class="muted">({{ ch.sections|length }})</span>
+      {% for t in ch.tags %}<a class="tag" href="{{ root }}index.html?tag={{ t|urlencode }}">{{ t }}</a>{% endfor %}
+    </summary>
+    <ol class="toc">
+      {% for s in ch.sections %}<li><a href="{{ root }}section/{{ s.id }}.html">{{ s.name }}</a></li>{% endfor %}
+    </ol>
+  </details>
+{% endfor %}
+<script>
+  // Open the chapter targeted by #chNN (links from tag results and breadcrumbs).
+  const target = location.hash && document.querySelector(location.hash);
+  if (target && target.tagName === "DETAILS") { target.open = true; target.scrollIntoView(); }
+</script>
+{% endblock %}

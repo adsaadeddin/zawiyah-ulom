@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }} — {{ s.book_title }}{% endblock %}
+{% block content %}
+<div class="crumbs">
+  <a href="{{ url_for('ui_book', book_id=s.book_id) }}">{{ s.book_title }}</a> ›
+  <a href="{{ url_for('ui_book', book_id=s.book_id) }}#ch{{ s.chapter_id }}">{{ s.chapter_name }}</a>
+</div>
+<h1>{{ s.name }}</h1>
+
+<article class="reading">
+  {% for para in s.content.split('\n') %}<p>{{ para }}</p>{% endfor %}
+</article>
+
+<nav class="pager">
+  <span>{% if s.previous %}→ <a href="{{ url_for('ui_section', section_id=s.previous.id) }}">{{ s.previous.name }}</a>{% endif %}</span>
+  <span>{% if s.next %}<a href="{{ url_for('ui_section', section_id=s.next.id) }}">{{ s.next.name }}</a> ←{% endif %}</span>
+</nav>
+{% endblock %}

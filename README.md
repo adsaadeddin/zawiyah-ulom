@@ -11,57 +11,28 @@ search runs in the browser.
 | فتح القريب المجيب (شرح ابن قاسم على متن أبي شجاع) | ابن قاسم الغزي (ت 918 هـ) |
 | كفاية الأخيار في حل غاية الإختصار | تقي الدين الحصني (ت 829 هـ) |
 | بشرى الكريم بشرح مسائل التعليم | سعيد باعشن (ت 1270 هـ) |
+| المقدمة الحضرمية (مسائل التعليم) — the matn of بشرى الكريم | عبد الله بافضل الحضرمي (ت 918 هـ) |
+Search ignores tashkeel, letter variants (أ/إ/ا، ة/ه، ى/ي) and the definite article,
+so «الوُضُوء», «والوضوء» and «وضوء» all match. Chapters are tagged by topic (طهارة، صلاة،
+بيوع…) and category (عبادات، معاملات…).
 
-## Setup
+## Quickstart
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.txt
+.\.venv\Scripts\python -m pip install -e .
+.\.venv\Scripts\fiqh build       # data/books/*.json -> data/fiqh.db -> docs/
+.\.venv\Scripts\fiqh serve       # http://127.0.0.1:5000
 ```
 
-## Build the data
+The scraped books are committed in `data/books/`, so no scraping is needed. To
+re-scrape: `fiqh scrape`. It takes about 30 minutes, and pages are cached in
+`data/raw/`.
 
-```powershell
-.\.venv\Scripts\python scraper.py        # all 3 books -> data/books/*.json (pages cached in data/raw/)
-.\.venv\Scripts\python load_db.py        # JSON -> data/fiqh.db, then tags chapters
-```
+**Full pipeline, project layout, how to add a book, and troubleshooting:
+[DEVELOPER.md](DEVELOPER.md).**
 
-A full scrape takes about 30 minutes (1 request/second). Re-runs read from the
-cache and take seconds. Both steps are safe to re-run.
-
-To retag after editing `RULES` in `tags.py`: `.\.venv\Scripts\python tags.py`
-
-## Run
-
-```powershell
-.\.venv\Scripts\python app.py            # http://127.0.0.1:5000
-```
-
-## Static site (GitHub Pages)
-
-```powershell
-.\.venv\Scripts\python export_static.py  # data/fiqh.db -> docs/
-```
-
-`docs/` is served by GitHub Pages (main branch, `/docs`). It contains one HTML page per
-book and per section, plus `data/search.json`, which holds the normalized text. Search
-runs in `site/assets/search.js`, and its `normalize` must stay in sync with `arabic.py`.
-Re-run the export and commit `docs/` after any data change.
-
-## Files
-
-| File | Purpose |
-|---|---|
-| `database.py` | Schema (8 tables + `SectionFTS` index) and connection helper |
-| `arabic.py` | Normalization used for both indexing and queries: strips tashkeel, unifies أ/إ/آ→ا, ى→ي, ة→ه, drops ال/وال/بال… prefixes |
-| `scraper.py` | Shamela book card, TOC, and page text → JSON |
-| `load_db.py` | JSON → SQLite (reloading a book replaces it) |
-| `tags.py` | Rule-based chapter tags (topic + category) |
-| `search.py` | FTS5 search; `python search.py "فروض الوضوء"` for quick checks |
-| `app.py` | JSON API + web UI |
-| `export_static.py`, `site/` | Static site generator and its templates/assets |
-
-## API
+## API (`fiqh serve`)
 
 | Endpoint | Returns |
 |---|---|
@@ -73,13 +44,7 @@ Re-run the export and commit `docs/` after any data change.
 | `GET /search?query=…` | Matching sections with highlighted snippets. Optional `&tag=` and `&limit=` (max 100) |
 | `GET /search?tag=…` | Chapters with that tag |
 
-## Known limitations
+## Sources
 
-- Matching is whole-word, after normalization: «فرائض» does not find «فروض».
-- Section boundaries are found by locating each title in its page text, ignoring
-  tashkeel. If that fails, the scraper takes a paragraph that opens with "(فصل…" /
-  "(باب…". Located: 204/204 (35120), 145/145 (6140), 118/124 (26535). For the other
-  6, the boundary page is included in both neighbouring sections.
-- Book and section IDs, and so the static page URLs, are assigned on load. To keep
-  them stable, rebuild with a fresh `data/fiqh.db` and the same book set.
-- Search snippets show normalized text (no tashkeel). The reading view shows the original.
+The texts come from [المكتبة الشاملة](https://shamela.ws). Rights to each printed edition
+belong to its publisher.

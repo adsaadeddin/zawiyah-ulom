@@ -1,5 +1,10 @@
 .venv/
 __pycache__/
+*.egg-info/
 *.pyc
 data/raw/
 data/fiqh.db
+# Personal notes: private, never commit.
+data/notes.db
+data/notes.db-*
+data/backups/

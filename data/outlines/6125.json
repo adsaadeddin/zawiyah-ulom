@@ -1,0 +1,26 @@
+{
+ "about": "المقدمة الحضرمية: Shamela's TOC lists only the 99 فصول, flat (ketabonline 5109 has the same index, minus 4 repeated titles). The كتاب/باب headings are printed inline in the text (e.g. '... بَاب التَّيَمُّم - يتيمم ...'), and the TOC starts at page 3, skipping the مقدمة and the opening of كتاب الطهارة on pages 1-2. These chapters were found by searching the text and match بشرى الكريم (26535), its sharh. Not a heading: 'بَاب مغلق' on page 75. Each بَاب heading is wrapped in an ornament that Shamela rendered as \"- صَلَّى اللَّهُ عَلَيْهِ وَسَلَّم َ -\" (28 occurrences, always dash-wrapped and voweled). ornaments removes only that dash-wrapped form; the 14 genuine \"على النبي صلى الله عليه وسلم\" in the text are untouched.",
+ "chapters": [
+  {"title": "مقدمة", "page": 1, "loose": true},
+  {"title": "كتاب الطهارة", "page": 2},
+  {"title": "باب النجاسة وإزالتها", "page": 25},
+  {"title": "باب التيمم", "page": 27},
+  {"title": "باب الصلاة", "page": 34},
+  {"title": "باب صفة الصلاة", "page": 42},
+  {"title": "باب صلاة المسافر", "page": 81},
+  {"title": "باب صلاة الجمعة", "page": 84},
+  {"title": "باب صلاة الخوف", "page": 89},
+  {"title": "باب صلاة العيدين", "page": 90},
+  {"title": "باب صلاة الكسوف والخسوف", "page": 93},
+  {"title": "باب صلاة الاستسقاء", "page": 94},
+  {"title": "باب الجنائز", "page": 96},
+  {"title": "كتاب الزكاة", "page": 102},
+  {"title": "باب زكاة النبات", "page": 105},
+  {"title": "باب زكاة النقد", "page": 107},
+  {"title": "كتاب الصيام", "page": 114},
+  {"title": "باب الاعتكاف", "page": 121},
+  {"title": "كتاب الحج والعمرة", "page": 123},
+  {"title": "باب الأضحية", "page": 139}
+ ],
+ "ornaments": ["صلى الله عليه وسلم"]
+}

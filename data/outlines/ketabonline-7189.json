@@ -1,0 +1,15 @@
+{
+ "about": "متن عقيدة العوام. ketabonline's book card credits the poem to أبو علي أحمد بن محمد بن الحسن المرزوقي الأصفهاني (ت 421 هـ), the earlier philologist (author of الأزمنة والأمكنة). That is wrong: the poem is by أحمد بن محمد بن رمضان الحسني المرزوقي (ت 1262 هـ), as the book's own section «ترجمة الإمام أحمد المرزوقي» states. Its TOC also gives the wrong page for five headings (each is printed one page later); pages corrects them.",
+ "author": {
+  "name": "أحمد المرزوقي",
+  "full_arabic_name": "أبو الفوز أحمد بن محمد بن رمضان الحسني المرزوقي المالكي",
+  "year_death_hijri": 1262
+ },
+ "pages": {
+  "محمد رسول الله صلى الله عليه وسلم وآله:": 5,
+  "أبناء الرسول صلى الله عليه وسلم وآله:": 5,
+  "أزواج رسول الله صلى الله عليه وسلم وآله:": 5,
+  "الإسراء والمعراج:": 6,
+  "خاتمة:": 6
+ }
+}

@@ -8,6 +8,14 @@ import sqlite3
 from zawiyah_ulom.arabic import tokens
 
 
+def books_clause(book_ids, column: str = "b.id") -> str:
+    """SQL "AND <column> IN (…)" restricting to a science's books (book_ids None = all).
+    Ids are integers from the database, so inlining them is safe."""
+    if book_ids is None:
+        return ""
+    return f"AND {column} IN ({','.join(str(int(i)) for i in book_ids) or 'NULL'})"
+
+
 def build_match_query(query: str) -> str:
     """Turn free text into an FTS5 query: every word must appear (AND).
     Each word is quoted so user input can't inject FTS5 syntax."""
@@ -15,7 +23,7 @@ def build_match_query(query: str) -> str:
 
 
 def search(conn: sqlite3.Connection, query: str, tag: str | None = None, limit: int = 20,
-           mark: tuple[str, str] = ("<mark>", "</mark>")) -> list[dict]:
+           mark: tuple[str, str] = ("<mark>", "</mark>"), book_ids: set[int] | None = None) -> list[dict]:
     """Snippets are HTML-escaped with hits wrapped in `mark` (safe to render).
     If `tag` is given, only sections in chapters with that tag are returned."""
     match = build_match_query(query)
@@ -33,7 +41,7 @@ def search(conn: sqlite3.Connection, query: str, tag: str | None = None, limit: 
         JOIN Section s ON s.id = SectionFTS.section_id
         JOIN Chapter c ON c.id = s.chapter_id
         JOIN Book b    ON b.id = c.book_id
-        WHERE SectionFTS MATCH :match {tag_filter if tag else ""}
+        WHERE SectionFTS MATCH :match {tag_filter if tag else ""} {books_clause(book_ids)}
         ORDER BY bm25(SectionFTS, 5.0, 1.0)  -- title hits weigh 5x
         LIMIT :limit
         """,

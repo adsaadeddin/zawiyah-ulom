@@ -163,6 +163,26 @@
     .add-para-note summary { font-size: 13px; color: var(--accent); cursor: pointer; margin-top: 6px; }
     .matn-text p { margin: 0; }
     .matn-text .ann-card { font-weight: 400; font-size: 15px; font-family: "Noto Kufi Arabic", sans-serif; }
+    /* Science tabs (workspaces) */
+    .science-tabs { border-top: 1px solid var(--border); background: var(--bg); }
+    .science-tabs .wrap { display: flex; gap: 4px; overflow-x: auto; padding-block: 0; scrollbar-width: thin; }
+    .science-tabs a { padding: 8px 14px 7px; font-size: 14px; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; }
+    .science-tabs a:hover { color: var(--text); text-decoration: none; }
+    .science-tabs a.active { color: var(--accent); font-weight: 600; border-bottom-color: var(--accent); }
+    .science-tabs .count { font-size: 11px; background: var(--border); color: var(--muted); border-radius: 999px; padding: 0 7px; margin-inline-start: 2px; }
+    .science-tabs a.active .count { background: var(--accent-soft); color: var(--accent); }
+    .science-tabs a.all { margin-inline-start: auto; }
+    .empty-science { text-align: center; padding: 32px 16px; }
+    .science-picker { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px 10px; margin: 10px 0;
+                      display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
+    .science-picker legend { font-size: 13px; font-weight: 600; padding: 0 6px; color: var(--accent); }
+    .science-picker label { font-size: 14px; cursor: pointer; }
+    .science-picker .muted { font-size: 12px; }
+    .accept-form { flex: 1 1 100%; }
+    .book-sciences summary { font-size: 13px; color: var(--muted); cursor: pointer; margin-top: 4px; }
+    /* Footnotes (Shamela «حاشية», marked ⸙ by the scraper): smaller and set apart, like the print. */
+    p.footnote { font-size: 0.78em !important; line-height: 1.75 !important; color: var(--muted, #555);
+                 border-top: 1px solid var(--border, #ccc); padding-top: 4px; margin-top: 6px; text-align: right; }
     progress { width: 100%; height: 14px; accent-color: var(--accent); }
     .sample { margin: 8px 0 12px; }
     dd.ok { color: var(--accent); }
@@ -180,7 +200,18 @@
       <a href="{{ url_for('ui_tarajem') }}" {% if request.path.startswith('/tarajem') %}class="active"{% endif %}>التراجم</a>
       <a href="{{ url_for('ui_notes') }}" {% if request.path.startswith('/notes') %}class="active"{% endif %}>✎ ملاحظاتي</a>
     </nav>
-  </div></header>
+  </div>
+  {% if sciences %}
+  <nav class="science-tabs" aria-label="العلوم"><div class="wrap">
+    {% set back = request.full_path.rstrip('?') %}
+    {% for sc in sciences %}
+      <a href="{{ url_for('ui_switch_science', slug=sc.slug, next=back) }}" class="{{ 'active' if sc.slug == current_science else '' }}">
+        {{ sc.name }} <span class="count">{{ sc.books }}</span></a>
+    {% endfor %}
+    <a href="{{ url_for('ui_switch_science', slug='all', next=back) }}" class="all {{ 'active' if current_science == 'all' else '' }}">الكل</a>
+  </div></nav>
+  {% endif %}
+  </header>
   <main class="wrap">{% block content %}{% endblock %}</main>
 </body>
 </html>

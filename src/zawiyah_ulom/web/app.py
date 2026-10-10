@@ -24,7 +24,7 @@ from zawiyah_ulom.db import get_connection
 from zawiyah_ulom.notes import attach_notes, get_note, list_notes, note_keys, save_note, search_notes
 from zawiyah_ulom import notes
 from zawiyah_ulom.search import search
-from zawiyah_ulom import library, scraper, study, tarajem
+from zawiyah_ulom import library, sciences, scraper, study, tarajem
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # return Arabic as-is, not \uXXXX escapes
@@ -37,6 +37,10 @@ MAX_LIMIT = 100
 def db() -> sqlite3.Connection:
     if "db" not in g:
         g.db = get_connection()
+        if not app.config.get("_schema_checked"):  # once per process: add new tables/columns
+            from zawiyah_ulom.db import init_db
+            init_db(g.db)
+            app.config["_schema_checked"] = True
         attach_notes(g.db)  # personal notes: data/notes.db, schema `notes`
     return g.db
 
@@ -46,6 +50,48 @@ def close_db(_exc):
     conn = g.pop("db", None)
     if conn is not None:
         conn.close()
+
+
+# ---------------------------------------------------------- sciences (tabs)
+
+def current_science() -> str:
+    """The workspace for this request: ?sci= overrides, else the remembered one, else فقه."""
+    if "science" not in g:
+        slug = request.args.get("sci") or request.cookies.get("science") or sciences.DEFAULT
+        g.science = slug if sciences.is_science(db(), slug) else sciences.DEFAULT
+    return g.science
+
+
+def science_books() -> set[int] | None:
+    """Ids of the current science's books (None in «الكل»)."""
+    if "science_books" not in g:
+        g.science_books = sciences.book_ids_in(db(), current_science())
+    return g.science_books
+
+
+def in_science(book_id) -> bool:
+    ids = science_books()
+    return ids is None or book_id in ids
+
+
+@app.context_processor
+def inject_sciences():
+    if request.path.startswith(("/static/",)) or request.path in ("/books", "/tags", "/search"):
+        return {}
+    return {"sciences": sciences.sciences(db()), "current_science": current_science()}
+
+
+@app.get("/science/<slug>")
+def ui_switch_science(slug):
+    """Switch workspace (remembered in a cookie) and return to the page you were on."""
+    if not sciences.is_science(db(), slug):
+        abort(404)
+    back = request.args.get("next") or "/"
+    if not back.startswith("/") or back.startswith("//"):
+        back = "/"
+    resp = redirect(back)
+    resp.set_cookie("science", slug, max_age=365 * 24 * 3600, samesite="Lax")
+    return resp
 
 
 # --------------------------------------------------------------- queries
@@ -128,10 +174,13 @@ def get_section(section_id: int) -> dict:
     return section
 
 
-def get_tags() -> list[dict]:
-    return [dict(r) for r in db().execute("""
+def get_tags(book_ids: set[int] | None = None) -> list[dict]:
+    """Tags with chapter counts; with book_ids, only tags used in those books."""
+    from zawiyah_ulom.search import books_clause
+    return [dict(r) for r in db().execute(f"""
         SELECT t.name, COUNT(ct.chapter_id) AS chapter_count
-        FROM Tag t LEFT JOIN ChapterTag ct ON ct.tag_id = t.id
+        FROM Tag t JOIN ChapterTag ct ON ct.tag_id = t.id JOIN Chapter c ON c.id = ct.chapter_id
+        WHERE 1 {books_clause(book_ids, "c.book_id")}
         GROUP BY t.id ORDER BY chapter_count DESC, t.name
     """)]
 
@@ -210,14 +259,16 @@ def not_found(err):
 def ui_home():
     query, tag, limit = search_args()
     results, tag_chapters, note_results, ann_results = None, None, None, None
+    ids = science_books()
     if query:
-        results = search(db(), query, tag=tag, limit=MAX_LIMIT)
-        note_results = search_notes(db(), query, tag=tag)
-        ann_results = notes.search_annotations(db(), query, tag=tag)
+        results = search(db(), query, tag=tag, limit=MAX_LIMIT, book_ids=ids)
+        note_results = search_notes(db(), query, tag=tag, book_ids=ids)
+        ann_results = notes.search_annotations(db(), query, tag=tag, book_ids=ids)
     elif tag:
-        tag_chapters = chapters_by_tag(tag)
-    return render_template("index.html", query=query, tag=tag, tags=get_tags(),
-                           books=get_books(), results=results, tag_chapters=tag_chapters,
+        tag_chapters = [c for c in chapters_by_tag(tag) if in_science(c["book_id"])]
+    return render_template("index.html", query=query, tag=tag, tags=get_tags(ids),
+                           books=[b for b in get_books() if in_science(b["id"])], results=results,
+                           tag_chapters=tag_chapters,
                            note_results=note_results, ann_results=ann_results, kinds=notes.KINDS)
 
 
@@ -330,6 +381,7 @@ def ui_delete_annotation(ann_id):
 def ui_notes():
     all_notes = list_notes(db())  # already in reading order
     by_book: dict[str, list[dict]] = {}
+    all_notes = [n for n in all_notes if n["book_id"] is None or in_science(n["book_id"])]
     for n in all_notes:
         if n["section_id"] is not None:
             by_book.setdefault(n["book_title"], []).append(n)
@@ -337,11 +389,12 @@ def ui_notes():
 
     kind = request.args.get("kind")
     kind = kind if kind in notes.KINDS else None
-    annotations = notes.list_annotations(db(), kind)
+    annotations = [a for a in notes.list_annotations(db(), kind) if a["book_id"] is None or in_science(a["book_id"])]
     ann_by_book: dict[str, list[dict]] = {}
     for a in annotations:
         ann_by_book.setdefault(a["book_title"] or "ملاحظات غير مرتبطة", []).append(a)
-    kind_counts = {k: len(notes.list_annotations(db(), k)) for k in notes.KINDS}
+    kind_counts = {k: sum(1 for a in notes.list_annotations(db(), k) if a["book_id"] is None or in_science(a["book_id"]))
+                   for k in notes.KINDS}
     return render_template("notes.html", by_book=by_book, unlinked=unlinked,
                            count=len(all_notes) - len(unlinked), ann_by_book=ann_by_book,
                            ann_count=len(annotations), kinds=notes.KINDS, kind=kind,
@@ -366,7 +419,12 @@ def _tarjama_form(scholar: dict | None, values: dict | None = None, errors: dict
 @app.get("/tarajem")
 def ui_tarajem():
     query = request.args.get("q", "").strip()
-    return render_template("tarajem_list.html", scholars=tarajem.list_scholars(db(), query),
+    show_all = request.args.get("all") == "1" or science_books() is None
+    scholars = tarajem.list_scholars(db(), query)
+    if not show_all:
+        authors = {r["author_id"] for r in db().execute("SELECT id, author_id FROM Book") if in_science(r["id"])}
+        scholars = [x for x in scholars if x["id"] in authors]
+    return render_template("tarajem_list.html", scholars=scholars, show_all=show_all,
                            total=db().execute("SELECT COUNT(*) FROM Scholar").fetchone()[0],
                            query=query, message=request.args.get("msg"))
 
@@ -443,7 +501,10 @@ def ui_library():
         except Exception as e:  # network errors, missing book
             error = f"تعذّر جلب الكتاب: {e}"
     job = library.current_job()
-    return render_template("library.html", books=library.library_books(db()), staged=library.staged_books(),
+    book_sci = sciences.book_sciences(db())
+    books = [{**b, "sciences": book_sci.get(b["id"], []), "key": study.book_key(b["source_url"] or "")}
+             for b in library.library_books(db()) if in_science(b["id"])]
+    return render_template("library.html", books=books, staged=library.staged_books(),
                            job=job.as_dict() if job else None, preview=preview, ref=ref,
                            error=error, message=request.args.get("msg"))
 
@@ -451,8 +512,11 @@ def ui_library():
 @app.post("/library/download")
 def ui_library_download():
     try:
+        chosen = request.form.getlist("science")
+        if not chosen:
+            raise library.LibraryError("اختر العلم الذي يُضاف إليه الكتاب")
         library.start_download(request.form["source"], int(request.form["book_id"]),
-                               request.form.get("title", ""))
+                               request.form.get("title", ""), chosen)
     except (library.LibraryError, KeyError, ValueError) as e:
         return redirect(url_for("ui_library", error=str(e)))
     return redirect(url_for("ui_library"))
@@ -466,11 +530,28 @@ def api_library_job():
 
 @app.post("/library/staged/<key>/accept")
 def ui_library_accept(key):
+    chosen = request.form.getlist("science")
+    if not chosen:
+        return redirect(url_for("ui_library", error="اختر علمًا واحدًا على الأقل للكتاب"))
     try:
         library.accept(key)
     except library.LibraryError as e:
         return redirect(url_for("ui_library", error=str(e)))
-    return redirect(url_for("ui_library", msg="أُضيف الكتاب إلى المكتبة"))
+    sciences.set_book_sciences(db(), key, chosen)
+    (library.STAGING_DIR / f"{key}.sciences").unlink(missing_ok=True)
+    names = {sc["slug"]: sc["name"] for sc in sciences.sciences(db())}
+    return redirect(url_for("ui_library", msg="أُضيف الكتاب إلى: " + "، ".join(names.get(c, c) for c in chosen)))
+
+
+@app.post("/library/book/<key>/sciences")
+def ui_book_sciences(key):
+    """Set which sciences a book belongs to (several allowed)."""
+    library._check_key(key)
+    try:
+        sciences.set_book_sciences(db(), key, request.form.getlist("science"))
+    except ValueError as e:
+        return redirect(url_for("ui_library", error=str(e)))
+    return redirect(url_for("ui_library", msg="تم حفظ علوم الكتاب"))
 
 
 @app.post("/library/staged/<key>/discard")
@@ -486,7 +567,7 @@ def ui_library_discard(key):
 
 @app.get("/study")
 def ui_study_index():
-    return render_template("study_index.html", sets=study.study_sets(db()))
+    return render_template("study_index.html", sets=[st for st in study.study_sets(db()) if in_science(st["matn"]["id"])])
 
 
 @app.get("/study/<int:matn_id>")

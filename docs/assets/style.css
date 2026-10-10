@@ -80,3 +80,7 @@ button.link { background: none; border: 0; color: var(--accent); cursor: pointer
               -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent); mask-image: linear-gradient(to bottom, #000 80%, transparent); }
 .sharh-text.open { max-height: none; -webkit-mask-image: none; mask-image: none; }
 .sharh-text p { margin: 0 0 8px; text-align: justify; }
+
+/* Footnotes (Shamela «حاشية», marked ⸙ by the scraper): smaller and set apart, like the print. */
+p.footnote { font-size: 0.78em !important; line-height: 1.75 !important; color: var(--muted, #555);
+             border-top: 1px solid var(--border, #ccc); padding-top: 4px; margin-top: 6px; text-align: right; }

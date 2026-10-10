@@ -33,6 +33,7 @@
     .notes .lbl { font-family: "Noto Kufi Arabic", sans-serif; font-size: 8pt; color: var(--k); white-space: nowrap; }
     .notes .q { color: #555; }
     .notes .body { white-space: pre-wrap; }
+    p.footnote { font-size: 11pt; color: #444; border-top: 0.5px solid #999; padding-top: 1mm; }
     @media print { .controls { display: none; } .wrap { padding: 0; } }
   </style>
 </head>
@@ -73,7 +74,7 @@
       <div class="sharh">
         <h3>{{ b.short }}{% if b.author %} — {{ b.author }}{% endif %}</h3>
         {% if col.merged %}<div class="merged">مشروحة مع الفقرة السابقة</div>
-        {% else %}{% for part in col.parts %}{% for d in part.display %}<p>{{ print_text(d.segments, row.note_no, labelled) }}</p>{% endfor %}{% endfor %}{% endif %}
+        {% else %}{% for part in col.parts %}{% for d in part.display %}<p{% if d.segments and d.segments[0][0].startswith("⸙") %} class="footnote"{% endif %}>{{ print_text(d.segments, row.note_no, labelled) }}</p>{% endfor %}{% endfor %}{% endif %}
       </div>
     {% endfor %}
     {% if row.print_notes %}

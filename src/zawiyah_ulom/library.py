@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 
 from zawiyah_ulom.config import BOOKS_DIR, STAGING_DIR
-from zawiyah_ulom.tags import tags_for
+from zawiyah_ulom.tags import RULES_BY_SCIENCE, tags_for
 
 # A Shamela link or bare id, or a ketabonline link (/ar/books/92681[/read?…]).
 SHAMELA_REF = re.compile(r"^\s*(?:(?:https?://)?(?:www\.)?shamela\.ws/book/)?(\d{1,7})(?:[/?#]\S*)?\s*$")
@@ -64,6 +64,7 @@ class Job:
     book_id: int
     key: str
     title: str
+    sciences: list[str] = field(default_factory=list)  # chosen in the preview (BookScience slugs)
     state: str = "running"  # running | done | failed
     pages_read: int = 0
     total_pages: int = 0
@@ -84,7 +85,7 @@ def current_job() -> Job | None:
     return _job
 
 
-def start_download(source: str, book_id: int, title: str) -> Job:
+def start_download(source: str, book_id: int, title: str, sciences: list[str] | None = None) -> Job:
     """Scrape a book into data/staging/ in a background thread."""
     global _job
     from zawiyah_ulom.scraper import get_source, scrape  # heavy imports only when needed
@@ -95,7 +96,7 @@ def start_download(source: str, book_id: int, title: str) -> Job:
             raise LibraryError(f"يجري تنزيل «{_job.title}» الآن. انتظر حتى ينتهي.")
         if in_library(src.key):
             raise LibraryError("هذا الكتاب موجود في المكتبة بالفعل")
-        job = _job = Job(source=source, book_id=book_id, key=src.key, title=title)
+        job = _job = Job(source=source, book_id=book_id, key=src.key, title=title, sciences=sciences or [])
 
     def progress(done: int, total: int) -> None:
         job.pages_read, job.total_pages = done, total
@@ -103,6 +104,7 @@ def start_download(source: str, book_id: int, title: str) -> Job:
     def run() -> None:
         try:
             STAGING_DIR.mkdir(parents=True, exist_ok=True)
+            save_staged_sciences(src.key, job.sciences)  # kept with the download until "add"
             scrape(src, out_dir=STAGING_DIR, progress=progress)
             job.state = "done"
         except Exception as exc:  # shown on the page; the cache keeps what was fetched
@@ -116,17 +118,32 @@ def start_download(source: str, book_id: int, title: str) -> Job:
 
 # ---------------------------------------------------------- staged books
 
+def _sciences_file(key: str):
+    return STAGING_DIR / f"{_check_key(key)}.sciences"  # not *.json, so staged_books() skips it
+
+
+def save_staged_sciences(key: str, slugs: list[str]) -> None:
+    STAGING_DIR.mkdir(parents=True, exist_ok=True)
+    _sciences_file(key).write_text(json.dumps(slugs), encoding="utf-8")
+
+
+def staged_sciences(key: str) -> list[str]:
+    f = _sciences_file(key)
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else []
+
+
 def staged_books() -> list[dict]:
     """Downloaded books awaiting a decision, each with its quality report."""
     out = []
     for path in sorted(STAGING_DIR.glob("*.json")) if STAGING_DIR.exists() else []:
         data = json.loads(path.read_text(encoding="utf-8"))
         out.append({"key": path.stem, "title": data["title"], "url": data["url"],
-                    "author": data["author"]["name"], "report": quality_report(data)})
+                    "sciences": staged_sciences(path.stem),
+                    "author": data["author"]["name"], "report": quality_report(data, staged_sciences(path.stem))})
     return out
 
 
-def quality_report(data: dict) -> dict:
+def quality_report(data: dict, sciences: list[str] | None = None) -> dict:
     """The checks done by hand when adding a book, as data for the page."""
     chapters = data["chapters"]
     sections = [s for ch in chapters for s in ch["sections"]]
@@ -139,7 +156,10 @@ def quality_report(data: dict) -> dict:
         "sections": len(sections),
         "located": len(sections) - len(unlocated),
         "unlocated": unlocated,
-        "untagged": [ch["title"] for ch in chapters if not tags_for(ch["title"])],
+        # Only sciences with tag rules can leave chapters "untagged" (see tags.RULES_BY_SCIENCE).
+        "untagged": [ch["title"] for ch in chapters
+                     if any(s in RULES_BY_SCIENCE for s in (sciences or ["fiqh"]))
+                     and not tags_for(ch["title"], sciences or ["fiqh"])],
         "stray_markers": stray,
         "empty": [s["title"] for s in sections if not s["content"].strip()],
         # Flat TOC: most chapters hold a single فصل. Needs data/outlines/<id>.json.
@@ -171,6 +191,7 @@ def accept(key: str) -> None:
 
 def discard(key: str) -> None:
     (STAGING_DIR / f"{_check_key(key)}.json").unlink(missing_ok=True)
+    _sciences_file(key).unlink(missing_ok=True)
 
 
 # --------------------------------------------------------------- library

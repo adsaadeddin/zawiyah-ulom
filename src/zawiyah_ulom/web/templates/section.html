@@ -18,7 +18,7 @@
 <article class="reading" id="reading">
   {% if segments %}
     {% for segs in segments %}{% set i = loop.index0 %}
-      <p data-section="{{ s.id }}" data-p="{{ i }}">{{ marked(segs, ann_kind) }}</p>
+      <p data-section="{{ s.id }}" data-p="{{ i }}"{% if segs and segs[0][0].startswith("⸙") %} class="footnote"{% endif %}>{{ marked(segs, ann_kind) }}</p>
       {% if by_paragraph.get(i) %}<div class="ann-cards" data-p="{{ i }}">
         {% for a in by_paragraph[i] %}{{ ann_card(a, kinds, here, open_ann, always_open=(a.scope == 'paragraph')) }}{% endfor %}
       </div>{% endif %}

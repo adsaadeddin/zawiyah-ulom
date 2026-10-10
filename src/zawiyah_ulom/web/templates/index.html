@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <form class="search" action="{{ url_for('ui_home') }}" method="get">
-  <input type="search" name="query" value="{{ query }}" placeholder="ابحث في كتب الفقه… مثال: فروض الوضوء" autofocus>
+  <input type="search" name="query" value="{{ query }}" placeholder="ابحث في الكتب… مثال: فروض الوضوء" autofocus>
   <select name="tag" aria-label="الموضوع">
     <option value="">كل الموضوعات</option>
     {% for t in tags %}<option value="{{ t.name }}" {% if t.name == tag %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
@@ -55,11 +55,18 @@
   {% endfor %}
 
 {% else %}
-  <h2>الكتب</h2>
+  {% set sci = (sciences|selectattr('slug', 'equalto', current_science)|first) if current_science != 'all' else none %}
+  <h2>{% if sci %}كتب {{ sci.name }}{% else %}كل الكتب{% endif %}</h2>
   {% for b in books %}
     <div class="card">
       <a href="{{ url_for('ui_book', book_id=b.id) }}"><strong>{{ b.title }}</strong></a>
       <div class="muted">{% if b.author_id %}<a href="{{ url_for('ui_tarjama', scholar_id=b.author_id) }}">{{ b.author }}</a>{% else %}{{ b.author }}{% endif %}{% if b.year_death_hijri %} (ت {{ b.year_death_hijri }} هـ){% endif %} · {{ b.chapter_count }} باب</div>
+    </div>
+  {% else %}
+    <div class="card empty-science">
+      <p><strong>لا توجد كتب في {{ sci.name if sci else 'المكتبة' }} بعد.</strong></p>
+      <p class="muted">أضف أول كتاب من المكتبة الشاملة أو جامع الكتب الإسلامية؛ سيُضاف إلى هذا العلم تلقائيًا.</p>
+      <p><a class="button" href="{{ url_for('ui_library') }}">+ إضافة كتاب</a></p>
     </div>
   {% endfor %}
 {% endif %}

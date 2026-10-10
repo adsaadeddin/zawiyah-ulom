@@ -54,7 +54,7 @@ class KetabonlineSource:
             key, sep, value = line.partition(":")
             if sep and value.strip():
                 fields[key.strip()] = value.strip()
-        author_full = fields.get("المؤلف", "")
+        author_full = fields.get("المؤلف") or fields.get("الناظم", "")  # poems: «الناظم»
         death = _DEATH.search(author_full)
         author = (book.get("authors") or [{}])[0]
         publisher = book.get("publisher")

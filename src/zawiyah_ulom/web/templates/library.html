@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 {% block title %}المكتبة{% endblock %}
 {% block content %}
+{% macro science_picker(selected) %}
+  <fieldset class="science-picker">
+    <legend>يُضاف إلى</legend>
+    {% for sc in sciences %}
+      <label><input type="checkbox" name="science" value="{{ sc.slug }}" {% if sc.slug in selected %}checked{% endif %}> {{ sc.name }}</label>
+    {% endfor %}
+    <span class="muted">يمكن اختيار أكثر من علم</span>
+  </fieldset>
+{% endmacro %}
+{% set default_sciences = [current_science] if current_science != 'all' else ['fiqh'] %}
 <h1>المكتبة</h1>
 {% if message %}<p class="saved">✓ {{ message }}</p>{% endif %}
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
@@ -35,6 +45,7 @@
       <input type="hidden" name="source" value="{{ preview.source }}">
       <input type="hidden" name="book_id" value="{{ preview.source_id }}">
       <input type="hidden" name="title" value="{{ preview.title }}">
+      {{ science_picker(default_sciences) }}
       <button type="submit" class="button" {% if job and job.state == 'running' %}disabled title="يجري تنزيل كتاب آخر"{% endif %}>تنزيل الكتاب</button>
     </form>
   {% endif %}
@@ -91,7 +102,8 @@
   </details>
 
   <div class="note-actions">
-    <form method="post" action="{{ url_for('ui_library_accept', key=b.key) }}">
+    <form method="post" action="{{ url_for('ui_library_accept', key=b.key) }}" class="accept-form">
+      {{ science_picker(b.sciences or default_sciences) }}
       <button type="submit">أضف إلى المكتبة</button></form>
     <form method="post" action="{{ url_for('ui_library_discard', key=b.key) }}"
           onsubmit="return confirm('تجاهل الكتاب المنزَّل؟ تبقى الصفحات محفوظة فيمكن تنزيله ثانية بسرعة.');">
@@ -109,6 +121,13 @@
         {% if b.year_death_hijri %}(ت {{ b.year_death_hijri }} هـ){% endif %}
         · {{ b.chapters }} باب · {{ b.sections }} فصل{% if b.notes %} · ✎ {{ b.notes }} ملاحظة{% endif %}
         · <a href="{{ b.source_url }}" target="_blank" rel="noopener">{{ 'جامع الكتب الإسلامية' if 'ketabonline' in (b.source_url or '') else 'الشاملة' }}</a></div>
+      <details class="book-sciences">
+        <summary>العلوم: {% for sc in sciences if sc.slug in b.sciences %}<span class="tag">{{ sc.name }}</span>{% endfor %}</summary>
+        <form method="post" action="{{ url_for('ui_book_sciences', key=b.key) }}" class="study-controls">
+          {% for sc in sciences %}<label><input type="checkbox" name="science" value="{{ sc.slug }}" {% if sc.slug in b.sciences %}checked{% endif %}> {{ sc.name }}</label>{% endfor %}
+          <button type="submit" class="button">حفظ</button>
+        </form>
+      </details>
     </div>
   </div>
 {% endfor %}

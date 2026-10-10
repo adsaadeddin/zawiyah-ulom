@@ -204,7 +204,47 @@ and its TOC links to it. In المنهاج القويم (9973) there are three c
   its chapter is dropped. Only exact repeats are affected.
 - **Other books** were unaffected by both fixes (byte-identical JSON).
 
-**Outline files (`data/outlines/<id>.json`), for flat TOCs.** Some Shamela books list only
+**Correction files (`data/outlines/<key>.json`).** These are per-book fixes for what a
+source gets wrong. Every field is optional:
+
+| Field | Fixes | Example |
+|---|---|---|
+| `author` | A wrong author on the card | عقيدة العوام: ketabonline names the Isfahani المرزوقي (d. 421) instead of أحمد المرزوقي (d. 1262) |
+| `rename` | Placeholder or bad contents titles | جوهرة التوحيد «خخخخخ», الخريدة «ققثث» |
+| `pages` | Contents entries pointing at the wrong page | عقيدة العوام: five headings printed one page later |
+| `drop` | Duplicate contents entries (by index) | قواعد العقائد: each ركن listed twice |
+| `groups` | A flat contents list whose entries *are* the headings, grouped under real chapters (`{"title", "first": index}`) | قواعد العقائد: 73 entries → 4 فصول + 4 أركان |
+| `chapters` / `ornaments` | Inline headings missing from the contents (the outline path below) | المقدمة الحضرمية |
+
+Two general rules also apply:
+- **Duplicate headings.** If a chapter's first sub-entry has the chapter's own title, no
+  extra intro section is added, and a heading-only page repeating the chapter title is
+  skipped.
+- **Bare headings.** A section left empty (just a heading line) is dropped, unless it is
+  flagged `missing_text`.
+
+All existing books stayed byte-identical except 11370. Its author's introduction had
+appeared twice because of a preamble bug that skipped a heading at offset 0; that is now
+fixed.
+
+**Volumes, numbered headings and footnotes** (added for مناهل العرفان, 7249):
+- **Volumes.** Top-level contents entries that only contain volumes («المجلد الأول»,
+  «الجزء الثاني») are replaced by their children (`unwrap_volumes`), so the real
+  divisions (17 مباحث) become the chapters.
+- **Numbered headings.** A heading's number («٣- …», «4. …», or an abjad letter at the
+  start of a line: «ا- …», «ب - …») is treated as part of the heading. The split moves
+  back over it, and the heading line is stripped (`_HEADING_NUMBER`).
+- **Footnotes.** Shamela's `<p class="hamesh">` paragraphs are kept, but prefixed with
+  `FOOTNOTE_MARK` («⸙ »). The pages render them as `p.footnote`: smaller and set off with
+  a rule. The mark isn't a letter, so search ignores it. Books with footnotes: 9973 (285
+  pages), 7249 (69) and 35120 (2). Re-scraping changed those books *only* by the marks;
+  all others stayed byte-identical.
+
+**Tags are per science** (`tags.RULES_BY_SCIENCE`). Only فقه has rules so far. A book is
+tagged only with its own sciences' rules, because fiqh keywords mis-tag عقيدة: «الإعتقاد»
+contains «عتق», and «الإيمان» normalizes like «الأيمان».
+
+**Outline files, for flat TOCs.** Some Shamela books list only
 their فصول, with no كتاب/باب level, while the headings are printed inline in the text
 ("… بَاب التَّيَمُّم - يتيمم …"). Without help, every فصل becomes its own chapter and gets
 no tags. An outline file lists the real chapter headings:

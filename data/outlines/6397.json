@@ -1,0 +1,42 @@
+{
+ "about": "قواعد العقائد للغزالي (from إحياء علوم الدين), ed. موسى محمد علي. Shamela's TOC is flat (73 entries). These groups follow الغزالي's own structure: four فصول, the third (لوامع الأدلة, also known as الرسالة القدسية) in four أركان of ten أصول each. The opening (p1) runs into الفصل الأول without a printed heading. Each ركن is listed twice in the TOC (the heading page and the page before), so the earlier duplicate is dropped.",
+ "groups": [
+  {
+   "title": "الفصل الأول: في ترجمة عقيدة أهل السنة في كلمتي الشهادة",
+   "first": 0
+  },
+  {
+   "title": "الفصل الثاني في وجه التدريج إلى الإرشاد وترتيب درجات الإعتقاد",
+   "first": 9
+  },
+  {
+   "title": "الفصل الثالث: في لوامع الأدلة للعقيدة (الرسالة القدسية)",
+   "first": 13
+  },
+  {
+   "title": "الركن الأول في معرفة ذات الله تعالى ومداره على عشرة أصول",
+   "first": 15
+  },
+  {
+   "title": "الركن الثاني العلم بصفات الله تعالى ومداره على عشرة أصول",
+   "first": 26
+  },
+  {
+   "title": "الركن الثالث العلم بأفعال الله تعالى ومداره على عشرة أصول",
+   "first": 38
+  },
+  {
+   "title": "الركن الرابع في السمعيات وتصديقه صلى الله عليه وسلم فيما أخبر عنه ومداره على عشرة أصول",
+   "first": 50
+  },
+  {
+   "title": "الفصل الرابع في الإيمان والإسلام وما بينهما من الاتصال والانفصال",
+   "first": 62
+  }
+ ],
+ "drop": [
+  26,
+  38,
+  50
+ ]
+}

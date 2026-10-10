@@ -31,6 +31,7 @@ from pathlib import Path
 
 from zawiyah_ulom.arabic import fuzzy_pattern, has_arabic, normalize, tokens
 from zawiyah_ulom.config import BACKUP_DIR, NOTES_PATH
+from zawiyah_ulom.search import books_clause
 
 NOTES_SCHEMA = """
 CREATE TABLE IF NOT EXISTS notes.Note (
@@ -144,7 +145,7 @@ def list_notes(conn: sqlite3.Connection) -> list[dict]:
 
 
 def search_notes(conn: sqlite3.Connection, query: str, tag: str | None = None,
-                 limit: int = 50) -> list[dict]:
+                 limit: int = 50, book_ids: set[int] | None = None) -> list[dict]:
     """Notes containing every word of `query` (normalized). Optional tag filter
     by the note's chapter, as in search.search()."""
     match = " ".join(f'"{w}"' for w in tokens(query))
@@ -154,7 +155,7 @@ def search_notes(conn: sqlite3.Connection, query: str, tag: str | None = None,
                                  JOIN Tag t ON t.id = ct.tag_id WHERE t.name = :tag)"""
     rows = conn.execute(_NOTE_WITH_SECTION + f"""
         WHERE n.section_key IN (SELECT section_key FROM notes.NoteFTS WHERE NoteFTS MATCH :match)
-        {tag_filter if tag else ""}
+        {tag_filter if tag else ""} {books_clause(book_ids)}
         ORDER BY n.updated_at DESC
         LIMIT :limit
     """, {"match": match, "tag": tag, "limit": limit}).fetchall()
@@ -368,7 +369,7 @@ def list_annotations(conn: sqlite3.Connection, kind: str | None = None) -> list[
 
 
 def search_annotations(conn: sqlite3.Connection, query: str, tag: str | None = None,
-                       limit: int = 50) -> list[dict]:
+                       limit: int = 50, book_ids: set[int] | None = None) -> list[dict]:
     """Annotations whose note or quoted passage contains every word of `query`."""
     match = " ".join(f'"{w}"' for w in tokens(query))
     if not match:
@@ -377,7 +378,7 @@ def search_annotations(conn: sqlite3.Connection, query: str, tag: str | None = N
                                  JOIN Tag t ON t.id = ct.tag_id WHERE t.name = :tag)"""
     return [dict(r) for r in conn.execute(_ANNOTATION_WITH_SECTION + f"""
         WHERE a.id IN (SELECT annotation_id FROM notes.AnnotationFTS WHERE AnnotationFTS MATCH :match)
-        {tag_filter if tag else ""}
+        {tag_filter if tag else ""} {books_clause(book_ids)}
         ORDER BY a.updated_at DESC
         LIMIT :limit
     """, {"match": match, "tag": tag, "limit": limit}).fetchall()]

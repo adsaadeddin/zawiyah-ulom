@@ -70,6 +70,30 @@ CREATE TABLE IF NOT EXISTS ChapterTag (
     PRIMARY KEY (chapter_id, tag_id)
 );
 
+-- Sciences (فنون): each is a workspace in the app. structure: book | ayah | hadith
+-- (ayah/hadith get their own navigation in later phases).
+CREATE TABLE IF NOT EXISTS Science (
+    slug       TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    sort       INTEGER NOT NULL,
+    structure  TEXT NOT NULL DEFAULT 'book'
+);
+INSERT OR IGNORE INTO Science (slug, name, sort, structure) VALUES
+    ('fiqh', 'الفقه', 1, 'book'),
+    ('aqeedah', 'العقيدة', 2, 'book'),
+    ('tasawwuf', 'التصوف', 3, 'book'),
+    ('ulum-quran', 'علوم القرآن', 4, 'book'),
+    ('tafsir', 'تفاسير القرآن', 5, 'ayah');
+
+-- Which sciences a book belongs to (several allowed). Keyed by the book's file
+-- key (Shamela id or ketabonline-<id>), not Book.id, so it survives rebuilds
+-- like notes do. A book with no row here counts as فقه.
+CREATE TABLE IF NOT EXISTS BookScience (
+    book_key TEXT NOT NULL,
+    science  TEXT NOT NULL REFERENCES Science(slug),
+    PRIMARY KEY (book_key, science)
+);
+
 CREATE TABLE IF NOT EXISTS URL (
     id          INTEGER PRIMARY KEY,
     entity_type TEXT NOT NULL CHECK (entity_type IN ('book', 'scholar_bio')),

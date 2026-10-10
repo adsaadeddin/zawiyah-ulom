@@ -19,6 +19,9 @@ are in [DEVELOPER.md](DEVELOPER.md).
 | ✅ | Tarajem, part 1 | التراجم tab: add, edit and search scholars, teacher↔student links, authors linked from their books. Kept across rebuilds, and included in `zawiyah backup` |
 | ✅ | Library tab | Add a Shamela book from the app: preview, background download, quality report, then add or discard. Details below |
 | ✅ | Two sources | Books from shamela.ws and ketabonline.com (جامع الكتب الإسلامية), through the same tab |
+| ✅ | Science tabs | الفقه، العقيدة، التصوف، علوم القرآن، تفاسير القرآن, plus «الكل». Every page is filtered to the current science. The library's «يُضاف إلى» picker chooses a new book's sciences (several allowed). Tags are per science |
+| ✅ | علوم القرآن (1 book) | مناهل العرفان في علوم القرآن (الزرقاني), 19 chapters (17 مباحث), 204 sections. Footnotes shown as footnotes, which also improves المنهاج القويم and فتح القريب |
+| ✅ | العقيدة (4 books) | عقيدة العوام (المرزوقي), جوهرة التوحيد (اللقاني), الخريدة البهية (الدردير), قواعد العقائد (الغزالي) |
 | ✅ | Library | 6 books. The matn المقدمة الحضرمية with two of its commentaries (بشرى الكريم، المنهاج القويم), plus فتح القريب and كفاية الأخيار |
 
 ## ⬜ Next: several sciences, each with its own workspace

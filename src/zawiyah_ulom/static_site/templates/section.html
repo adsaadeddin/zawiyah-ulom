@@ -8,7 +8,7 @@
 <h1>{{ s.name }}</h1>
 
 <article class="reading">
-  {% if s.content %}{% for para in s.content.split('\n') %}<p>{{ para }}</p>{% endfor %}
+  {% if s.content %}{% for para in s.content.split('\n') %}<p{% if para.startswith('⸙') %} class="footnote"{% endif %}>{{ para }}</p>{% endfor %}
   {% else %}<p class="muted">نص هذا الفصل غير موجود في نسخة المكتبة الشاملة من الكتاب (فيها العنوان فقط).</p>{% endif %}
 </article>
 

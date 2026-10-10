@@ -32,7 +32,7 @@
           <div class="sharh-text">
             {% for part in col.parts %}
               <div class="sharh-section"><a href="{{ root }}section/{{ part.section.id }}.html">{{ part.section.name }}</a></div>
-              {% for p in part.text.split('\n') %}<p>{{ p }}</p>{% endfor %}
+              {% for p in part.text.split('\n') %}<p{% if p.startswith('⸙') %} class="footnote"{% endif %}>{{ p }}</p>{% endfor %}
             {% endfor %}
           </div>
           <button type="button" class="link more" hidden>عرض الكل ▾</button>

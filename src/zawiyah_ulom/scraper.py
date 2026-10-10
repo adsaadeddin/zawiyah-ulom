@@ -135,7 +135,7 @@ def build_outline(toc: list[dict]) -> list[dict]:
         sections = _flatten(item["children"])
         if not sections or sections[0]["page"] > item["page"]:
             sections.insert(0, {"title": item["title"], "page": item["page"]})
-        else:
+        elif tokens(sections[0]["title"]) != tokens(item["title"]):  # else the sub-entry is the heading
             sections.insert(0, {"title": item["title"], "page": item["page"], "intro": True})
         chapters.append({"title": item["title"], "page": item["page"], "sections": sections})
     return chapters
@@ -144,11 +144,17 @@ def build_outline(toc: list[dict]) -> list[dict]:
 # ---------------------------------------------------- outline overrides
 
 def load_outline(book_key: int | str) -> dict | None:
-    """data/outlines/<id>.json, for books whose Shamela TOC is flat (only فصول)
-    while the كتاب/باب headings are printed inline in the text. Keys:
-      chapters   [{"title", "page", "loose"?}] in reading order (required)
-      ornaments  phrases Shamela rendered from decorative print ornaments around
-                 headings; removed from page text only where dash-wrapped ("- … -")"""
+    """data/outlines/<key>.json: per-book corrections. All keys optional:
+      chapters   [{"title", "page", "loose"?}]: inline كتاب/باب headings for a flat TOC,
+                 located in the text (the "outline" path, e.g. المقدمة الحضرمية)
+      ornaments  phrases Shamela rendered from decorative ornaments around headings;
+                 removed from page text only where dash-wrapped ("- … -")
+      author     fields replacing the card's author (a source's card can be wrong)
+      rename     {"TOC title": "better title"}: e.g. placeholder titles like «خخخخخ»
+      pages      {"TOC title": page}: the page a heading is really on, when the TOC is off
+      drop       indices of top-level TOC entries to ignore (duplicate entries)
+      groups     [{"title", "first"}]: group a flat TOC whose entries are headings under
+                 real chapters; each group runs from TOC index `first` to the next one"""
     path = OUTLINES_DIR / f"{book_key}.json"
     if not path.exists():
         return None
@@ -165,6 +171,47 @@ def _ornament_re(book_id: int) -> re.Pattern | None:
             r"-\s*(?:" + "|".join(fuzzy_pattern(p) for p in phrases) + r")\s*َ?\s*-"
         ) if phrases else None
     return _ornament_cache[book_id]
+
+
+VOLUME_TITLE = re.compile(r"^\s*(?:المجلد|المجلدة|الجزء)\s")
+
+
+def unwrap_volumes(toc: list[dict]) -> list[dict]:
+    """Top-level entries that are only volume containers («المجلد الأول», «الجزء
+    الثاني») are replaced by their contents, so the real divisions (e.g. the 17
+    مباحث of مناهل العرفان) become the chapters."""
+    out = []
+    for item in toc:
+        if VOLUME_TITLE.match(item["title"]) and item["children"]:
+            out.extend(item["children"])
+        else:
+            out.append(item)
+    return out
+
+
+def apply_toc_corrections(toc: list[dict], fixes: dict) -> list[dict]:
+    """Apply an outline file's rename / drop / groups to a TOC (see load_outline)."""
+    renames, pages = fixes.get("rename", {}), fixes.get("pages", {})
+
+    def renamed(items):
+        out = []
+        for it in items:
+            title = renames.get(it["title"], it["title"])
+            out.append({**it, "title": title, "page": pages.get(title, it["page"]), "children": renamed(it["children"])})
+        return out
+    toc = renamed(toc)
+    groups = sorted(fixes.get("groups", []), key=lambda g: g["first"])
+    if groups:  # indices refer to the original TOC, so group before dropping
+        starts = [g["first"] for g in groups] + [len(toc)]
+        toc = toc[:groups[0]["first"]] + [
+            {"title": g["title"], "page": toc[g["first"]]["page"],
+             "children": [dict(it, _i=i) for i, it in enumerate(toc[g["first"]:nxt], g["first"])]}
+            for g, nxt in zip(groups, starts[1:])]
+    drop = set(fixes.get("drop", []))
+    if drop:
+        toc = [{**it, "children": [c for c in it["children"] if c.get("_i") not in drop]}
+               for i, it in enumerate(toc) if not (not groups and i in drop)]
+    return toc
 
 
 def heading_pattern(title: str, loose: bool = False) -> str:
@@ -224,6 +271,14 @@ def group_by_headings(flat: list[dict]) -> list[dict]:
 
 # ------------------------------------------------------------------- pages
 
+# Footnote paragraphs (Shamela <p class="hamesh">) are kept but marked, so the
+# reading pages can show them as footnotes. The mark isn't a letter, so it isn't indexed.
+FOOTNOTE_MARK = "⸙ "
+# A heading's own number just before it: «٣- إطلاق القرآن…», «4. …», «٢) …», or an
+# abjad letter at the start of a line: «ا- …», «ب - …», «ج - …» (مناهل العرفان).
+_HEADING_NUMBER = r"(?:[0-9٠-٩]+|(?:(?<=\n)|^)[أابجدهوزحطيكلمنسعفصقرشتثخذضظغ])\s*[-–.)]\s*"
+
+
 def page_text(book_id: int, page: int) -> str:
     html = fetch(f"{BASE}/book/{book_id}/{page}", RAW_DIR / str(book_id) / f"p{page}.html")
     nass = BeautifulSoup(html, "html.parser").select_one("div.nass")
@@ -239,7 +294,7 @@ def page_text(book_id: int, page: int) -> str:
             text = ornament.sub(" - ", text)
         text = re.sub(r"\s+", " ", text).strip()
         if text:
-            paragraphs.append(text)
+            paragraphs.append(FOOTNOTE_MARK + text if "hamesh" in (p.get("class") or []) else text)
     return "\n".join(paragraphs)
 
 
@@ -298,7 +353,7 @@ def fill_content(read, chapters: list[dict], final_page: int, progress=None,
         s["_prev"] = (prev_page, prev_off)
         if s.get("preamble"):  # everything from the very start of the book
             s["located"], s["offset"] = True, 0
-            prev_page, prev_off = s["page"], 0
+            prev_page, prev_off = s["page"], -1  # the first heading may itself be at offset 0
             continue
         if s.get("heading"):  # outline heading: stricter inline-heading match
             m = re.compile(heading_pattern(s["title"], s.get("loose", False)), re.M).search(text(s["page"]), search_from)
@@ -306,7 +361,8 @@ def fill_content(read, chapters: list[dict], final_page: int, progress=None,
         else:
             off = find_title(text(s["page"]), s["title"], search_from)
         if off >= 0:  # split before a "[• title]", "(title" or "=title" opener, not inside it
-            opener = r"[\[(•=\-][\[(•=\-\s]*$" if s.get("heading") else r"[\[(•][\[(•\s]*$"
+            opener = (r"[\[(•=\-][\[(•=\-\s]*$" if s.get("heading")
+                      else rf"(?:[\[(•][\[(•\s]*|{_HEADING_NUMBER})$")  # «[• title», «(title», «٣- title»
             marker = re.search(opener, text(s["page"])[:off])
             off = marker.start() if marker else off
         s["located"] = off >= 0
@@ -335,7 +391,7 @@ def fill_content(read, chapters: list[dict], final_page: int, progress=None,
 
         if end_page == s["page"]:
             body = text(s["page"])[s["offset"]:end_off]
-            if not body.strip():  # unlocated neighbour on same page: share the page
+            if not body.strip() and not s.get("preamble"):  # unlocated neighbour on same page: share the page
                 body = text(s["page"])[s["offset"]:]
             parts = [body]
         else:
@@ -352,7 +408,7 @@ def fill_content(read, chapters: list[dict], final_page: int, progress=None,
             if heading:
                 content = content[heading.end():]
         elif has_arabic(s["title"]):
-            heading = re.match(r"[\[(•\"«\s]*" + fuzzy_pattern(s["title"]) + r"[\])\"»\s]*?(?:\n|$)", content)
+            heading = re.match(rf"[\[(•\"«\s]*(?:{_HEADING_NUMBER})?" + fuzzy_pattern(s["title"]) + r"[\])\"»\s]*?(?:\n|$)", content)
             if heading:
                 content = content[heading.end():]
         content = re.sub(r"\s*\*\s*\*\s*\*\s*$", "", content).strip()
@@ -362,7 +418,8 @@ def fill_content(read, chapters: list[dict], final_page: int, progress=None,
     for ch in chapters:
         ch["sections"] = [
             s for s in ch["sections"]
-            if not (s.get("intro") and not s["content"])
+            if (s["content"] or s.get("missing_text"))  # empty = a bare heading line (e.g. «الفصل الثالث»)
+            and not (s.get("intro") and not s["content"])
             and not (s.get("preamble") and len(s["content"]) < PREAMBLE_MIN_CHARS)]
         for s in ch["sections"]:
             for flag in ("intro", "preamble", "_prev"):
@@ -402,6 +459,9 @@ def fix_heading_pages(read, chapters: list[dict]) -> set[int]:
         for i, s in enumerate(secs):
             if s.get("preamble") or s.get("intro") or not _heading_only(read(s["page"]), s["title"]):
                 kept.append(s)
+                continue
+            if tokens(s["title"]) == tokens(ch["title"]):
+                skip.add(s["page"])  # just the chapter's heading (e.g. «الركن الثاني…» alone on a page)
                 continue
             nxt = secs[i + 1] if i + 1 < len(secs) else None
             if nxt and tokens(nxt["title"]) == tokens(s["title"]):
@@ -522,7 +582,11 @@ def scrape(src, out_dir: Path = BOOKS_DIR, progress=None) -> Path:
     print(f"Book {src.key}")
     meta, toc = src.card_and_toc()
     final = src.last_page()
-    outline = load_outline(src.key)
+    fixes = load_outline(src.key) or {}
+    if "author" in fixes:
+        meta["author"] = {**meta["author"], **fixes["author"]}
+    toc = apply_toc_corrections(unwrap_volumes(toc), fixes)
+    outline = fixes if "chapters" in fixes else None
 
     seen: set[int] = set()
 

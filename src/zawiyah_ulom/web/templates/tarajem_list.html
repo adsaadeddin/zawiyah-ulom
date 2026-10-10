@@ -14,6 +14,8 @@
 </form>
 
 <p class="muted">
+  {% if not show_all %}مؤلفو كتب هذا العلم فقط · <a href="{{ url_for('ui_tarajem', all=1, q=query or None) }}">عرض كل التراجم</a> ·
+  {% elif current_science != 'all' %}كل التراجم · <a href="{{ url_for('ui_tarajem', q=query or None) }}">مؤلفو هذا العلم فقط</a> ·{% endif %}
   {% if query %}{{ scholars|length }} من {{ total }} · <a href="{{ url_for('ui_tarajem') }}">عرض الكل</a>
   {% else %}{{ total }} ترجمة، مرتبة حسب سنة الوفاة{% endif %}
 </p>

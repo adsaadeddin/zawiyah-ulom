@@ -56,7 +56,7 @@
     <a class="num" href="#m{{ row.number }}">{{ row.number }}</a>
     <div class="matn-text">
       {% for d in row.matn_display %}
-        <p data-section="{{ row.matn_section.id }}" data-p="{{ d.p }}">{{ marked(d.segments, view.ann_kind) }}</p>
+        <p data-section="{{ row.matn_section.id }}" data-p="{{ d.p }}"{% if d.segments and d.segments[0][0].startswith("⸙") %} class="footnote"{% endif %}>{{ marked(d.segments, view.ann_kind) }}</p>
         {% for a in d.cards %}{{ ann_card(a, kinds, here, open_ann) }}{% endfor %}
       {% endfor %}
     </div>
@@ -72,7 +72,7 @@
             {% for part in col.parts %}
               <div class="sharh-section"><a href="{{ url_for('ui_section', section_id=part.section.id) }}">{{ part.section.name }}</a></div>
               {% for d in part.display %}
-                <p data-section="{{ part.section.id }}" data-p="{{ d.p }}">{{ marked(d.segments, view.ann_kind) }}</p>
+                <p data-section="{{ part.section.id }}" data-p="{{ d.p }}"{% if d.segments and d.segments[0][0].startswith("⸙") %} class="footnote"{% endif %}>{{ marked(d.segments, view.ann_kind) }}</p>
                 {% for a in d.cards %}{{ ann_card(a, kinds, here, open_ann) }}{% endfor %}
               {% endfor %}
             {% endfor %}

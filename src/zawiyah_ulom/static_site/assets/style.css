@@ -84,3 +84,12 @@ button.link { background: none; border: 0; color: var(--accent); cursor: pointer
 /* Footnotes (Shamela «حاشية», marked ⸙ by the scraper): smaller and set apart, like the print. */
 p.footnote { font-size: 0.78em !important; line-height: 1.75 !important; color: var(--muted, #555);
              border-top: 1px solid var(--border, #ccc); padding-top: 4px; margin-top: 6px; text-align: right; }
+.science-tabs { border-top: 1px solid var(--border); }
+.science-tabs .wrap { display: flex; gap: 4px; overflow-x: auto; padding-block: 0; }
+.science-tabs a { padding: 8px 14px 7px; font-size: 14px; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; }
+.science-tabs a:hover { color: var(--text); text-decoration: none; }
+.science-tabs a.active { color: var(--accent); font-weight: 600; border-bottom-color: var(--accent); }
+.science-tabs .count { font-size: 11px; background: var(--border); color: var(--muted); border-radius: 999px; padding: 0 7px; }
+.science-tabs a.active .count { background: var(--accent-soft); color: var(--accent); }
+.science-tabs a.all { margin-inline-start: auto; }
+[hidden] { display: none !important; }

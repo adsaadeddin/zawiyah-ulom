@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Kufi+Arabic:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/style.css">
+  <script src="../assets/science.js"></script>
 </head>
 <body>
   <header><div class="wrap">
@@ -17,23 +18,37 @@
       <a href="../study/index.html">قراءة مقارنة</a>
       <a href="../tarajem/index.html">التراجم</a>
     </nav>
-  </div></header>
+  </div>
+  
+  <nav class="science-tabs" aria-label="العلوم"><div class="wrap">
+    
+      <a href="?sci=fiqh" data-tab="fiqh" data-name="الفقه">الفقه <span class="count">7</span></a>
+    
+      <a href="?sci=aqeedah" data-tab="aqeedah" data-name="العقيدة">العقيدة <span class="count">4</span></a>
+    
+      <a href="?sci=ulum-quran" data-tab="ulum-quran" data-name="علوم القرآن">علوم القرآن <span class="count">1</span></a>
+    
+    <a href="?sci=all" data-tab="all" class="all">الكل</a>
+  </div></nav>
+  
+  </header>
   <main class="wrap">
 <h1>قراءة مقارنة</h1>
 <p class="muted">المتن فقرةً فقرة، وتحت كل فقرة ما قاله كل شارح في شرحها جنبًا إلى جنب.</p>
 
-  <div class="card">
+  <div class="card" data-sci="fiqh">
     <a href="1/1.html"><strong>متن أبي شجاع المسمى الغاية والتقريب</strong></a>
     <div class="muted">أبو شجاع</div>
     <div class="muted">مع: فتح القريب المجيب (محمد بن قاسم الغزي) · كفاية الأخيار (تقي الدين الحصني)</div>
   </div>
 
-  <div class="card">
+  <div class="card" data-sci="fiqh">
     <a href="4/56.html"><strong>المقدمة الحضرمية (مسائل التعليم)</strong></a>
     <div class="muted">بافضل الحضرمي</div>
     <div class="muted">مع: بُشرى الكريم (سعيد باعشن) · المنهاج القويم (ابن حجر الهيتمي)</div>
   </div>
 
+<p class="muted empty-science" hidden>لا قراءة مقارنة في هذا العلم بعد.</p>
 </main>
   <footer class="wrap muted">
     النصوص منقولة من <a href="https://shamela.ws" target="_blank" rel="noopener">المكتبة الشاملة</a> و<a href="https://ketabonline.com" target="_blank" rel="noopener">جامع الكتب الإسلامية</a>، وحقوق الطبعات لناشريها.

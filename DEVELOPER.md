@@ -369,10 +369,15 @@ chapter uses any more are deleted. Run `zawiyah tag` to see every chapter with i
   FTS5, so user input can't inject FTS5 syntax. Results are ranked by
   `bm25(SectionFTS, 5.0, 1.0)`, which weighs title matches 5×. Snippets come back
   HTML-escaped, with matches wrapped in `<mark>`.
-- **Static site (`search.js`).** Search loads `data/search.json` once (about 3.6 MB, served
-  gzipped at about 1 MB). It applies the same every-word-must-match rule and ranks with
+- **Static site (`search.js`).** Search loads `data/search.json` once (about 7.4 MB, served
+  gzipped). It applies the same every-word-must-match rule and ranks with
   tf-idf, also weighting title matches 5×. Result **sets** match FTS5 exactly. The
   **order** can differ slightly.
+- **Science tabs on the static site (`science.js`).** The chosen science comes from
+  `?sci=<slug>`, else `localStorage`, else فقه. Book cards, tag chips, scholars and study
+  sets carry `data-sci="<slugs>"`, and everything outside the chosen science is hidden.
+  `search.json` lists each book's sciences, so search filters the same way. Only
+  sciences that have books get a tab.
 
 ### 5.7 Personal notes (`notes.py`)
 

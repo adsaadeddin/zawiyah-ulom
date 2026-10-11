@@ -4,10 +4,11 @@
 <h1>قراءة مقارنة</h1>
 <p class="muted">المتن فقرةً فقرة، وتحت كل فقرة ما قاله كل شارح في شرحها جنبًا إلى جنب.</p>
 {% for st in sets %}
-  <div class="card">
+  <div class="card" data-sci="{{ st.sci|join(' ') }}">
     <a href="{{ st.matn.id }}/{{ st.first_chapter }}.html"><strong>{{ st.matn.title }}</strong></a>
     <div class="muted">{{ st.matn.author }}</div>
     <div class="muted">مع: {% for b in st.shuruh %}{{ b.short }}{% if b.author %} ({{ b.author }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}</div>
   </div>
 {% endfor %}
+<p class="muted empty-science" hidden>لا قراءة مقارنة في هذا العلم بعد.</p>
 {% endblock %}

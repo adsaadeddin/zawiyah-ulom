@@ -58,10 +58,13 @@
   function render(index) {
     const books = new Map(index.books.map((b) => [b.id, b]));
     const chapters = new Map(index.chapters.map((c) => [c.id, c]));
-    const inTag = (chapterId) => !tag || chapters.get(chapterId).tags.includes(tag);
+    // Only the current science tab's books (window.ZU_SCIENCE from science.js).
+    const sci = window.ZU_SCIENCE || "fiqh";
+    const inSci = (bookId) => sci === "all" || (books.get(bookId).sci || ["fiqh"]).includes(sci);
+    const inTag = (chapterId) => inSci(chapters.get(chapterId).b) && (!tag || chapters.get(chapterId).tags.includes(tag));
 
     if (!query) {
-      const list = index.chapters.filter((c) => c.tags.includes(tag));
+      const list = index.chapters.filter((c) => inSci(c.b) && c.tags.includes(tag));
       out.innerHTML = "<h2>أبواب موضوع «" + escapeHtml(tag) + "»</h2>" + list.map((c) =>
         '<div class="card"><div class="crumbs">' + escapeHtml(books.get(c.b).title) + "</div>" +
         '<a href="book/' + c.b + ".html#ch" + c.id + '"><strong>' + escapeHtml(c.name) + "</strong></a>" +

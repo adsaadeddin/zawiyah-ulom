@@ -1,27 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 <form class="search" id="search-form" action="index.html" method="get">
-  <input type="search" name="q" id="q" placeholder="ابحث في كتب الفقه… مثال: فروض الوضوء" autocomplete="off" autofocus>
+  <input type="search" name="q" id="q" placeholder="ابحث في الكتب… مثال: فروض الوضوء" autocomplete="off" autofocus>
   <select name="tag" id="tag" aria-label="الموضوع">
     <option value="">كل الموضوعات</option>
-    {% for t in tags %}<option value="{{ t.name }}">{{ t.name }}</option>{% endfor %}
+    {% for t in tags %}<option value="{{ t.name }}" data-sci="{{ t.sci|join(' ') }}">{{ t.name }}</option>{% endfor %}
   </select>
   <button type="submit">بحث</button>
 </form>
 
-<p id="tag-chips">{% for t in tags %}<a class="tag" data-tag="{{ t.name }}" href="?tag={{ t.name|urlencode }}">{{ t.name }}</a>{% endfor %}</p>
+<p id="tag-chips">{% for t in tags %}<a class="tag" data-tag="{{ t.name }}" data-sci="{{ t.sci|join(' ') }}" href="?tag={{ t.name|urlencode }}">{{ t.name }}</a>{% endfor %}</p>
 
 <div id="results" aria-live="polite"></div>
 
 <section id="books">
   <h2>الكتب</h2>
   {% for b in books %}
-    <div class="card">
+    <div class="card" data-sci="{{ b.sci|join(' ') }}">
       <a href="book/{{ b.id }}.html"><strong>{{ b.title }}</strong></a>
       <div class="muted">{% if b.author_id %}<a href="tarajem/{{ b.author_id }}.html">{{ b.author }}</a>{% else %}{{ b.author }}{% endif %}{% if b.year_death_hijri %} (ت {{ b.year_death_hijri }} هـ){% endif %}
         · {{ b.chapters|length }} باب · {{ b.section_count }} فصل</div>
     </div>
   {% endfor %}
+  <p class="muted empty-science" hidden>لا كتب في هذا العلم بعد.</p>
   <p class="muted">البحث لا يتأثر بالتشكيل ولا بأل التعريف: «الوُضُوء» و«والوضوء» و«وضوء» سواء.</p>
 </section>
 

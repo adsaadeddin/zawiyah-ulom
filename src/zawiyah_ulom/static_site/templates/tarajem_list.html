@@ -2,9 +2,9 @@
 {% block title %}التراجم — زاوية العلوم{% endblock %}
 {% block content %}
 <h1>التراجم</h1>
-<p class="muted">{{ scholars|length }} ترجمة، مرتبة حسب سنة الوفاة.</p>
+<p class="muted">{{ scholars|length }} ترجمة، مرتبة حسب سنة الوفاة. <span class="sci-only">تظهر هنا تراجم مؤلفي كتب هذا العلم؛ <a href="?sci=all">عرض كل التراجم</a>.</span></p>
 {% for s in scholars %}
-  <div class="card scholar-row">
+  <div class="card scholar-row" data-sci="{{ s.sci|join(' ') }}">
     <div>
       <a href="{{ s.id }}.html"><strong>{{ s.name }}</strong></a>
       {% if s.nickname and s.nickname != s.name %}<span class="muted">«{{ s.nickname }}»</span>{% endif %}

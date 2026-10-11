@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Kufi+Arabic:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ root }}assets/style.css">
+  <script src="{{ root }}assets/science.js"></script>
 </head>
 <body>
   <header><div class="wrap">
@@ -17,7 +18,16 @@
       <a href="{{ root }}study/index.html">قراءة مقارنة</a>
       <a href="{{ root }}tarajem/index.html">التراجم</a>
     </nav>
-  </div></header>
+  </div>
+  {% if sciences %}
+  <nav class="science-tabs" aria-label="العلوم"><div class="wrap">
+    {% for sc in sciences %}
+      <a href="{{ '' if filters else root ~ 'index.html' }}?sci={{ sc.slug }}" data-tab="{{ sc.slug }}" data-name="{{ sc.name }}">{{ sc.name }} <span class="count">{{ sc.books }}</span></a>
+    {% endfor %}
+    <a href="{{ '' if filters else root ~ 'index.html' }}?sci=all" data-tab="all" class="all">الكل</a>
+  </div></nav>
+  {% endif %}
+  </header>
   <main class="wrap">{% block content %}{% endblock %}</main>
   <footer class="wrap muted">
     النصوص منقولة من <a href="https://shamela.ws" target="_blank" rel="noopener">المكتبة الشاملة</a> و<a href="https://ketabonline.com" target="_blank" rel="noopener">جامع الكتب الإسلامية</a>، وحقوق الطبعات لناشريها.
